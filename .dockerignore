@@ -1,0 +1,11 @@
+.git
+.gitignore
+.DS_Store
+.aws-sam
+backend
+scripts
+README.md
+docker-compose*.yml
+Dockerfile*
+node_modules
+npm-debug.log

@@ -1,0 +1,58 @@
+# Environment variables and local secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+
+# Database exports and local backups
+*.sql
+*.dump
+*.backup
+backups/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node and frontend tooling
+node_modules/
+dist/
+build/
+coverage/
+.cache/
+
+# AWS and infrastructure build output
+.aws-sam/
+.sam-cache/
+cdk.out/
+.terraform/
+*.tfstate
+*.tfstate.*
+
+# Runtime files
+*.log
+*.pid
+tmp/
+temp/
+
+# Docker developer overrides
+docker-compose.override.yml
+
+# Editors and operating systems
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
