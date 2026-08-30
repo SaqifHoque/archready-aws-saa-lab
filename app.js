@@ -96,9 +96,33 @@
     return `${String(Math.floor(safe / 60)).padStart(2, '0')}:${String(safe % 60).padStart(2, '0')}`;
   }
 
+  function formatDuration(seconds) {
+    if (seconds < 60) return `${seconds}s`;
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.round((seconds % 3600) / 60);
+    return hours ? `${hours}h ${minutes}m` : `${minutes} min`;
+  }
+
+  function formatDate(timestamp) {
+    return new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(timestamp));
+  }
+
+  function progressSummary() {
+    const questionStats = Object.values(progress.stats);
+    const answers = questionStats.reduce((total, stat) => total + stat.attempts, 0);
+    const correct = questionStats.reduce((total, stat) => total + stat.correct, 0);
+    return {
+      accuracy: answers ? Math.round((correct / answers) * 100) : 0,
+      explored: questionStats.length,
+      sessions: progress.attempts.length,
+      studyTime: formatDuration(progress.totalSeconds)
+    };
+  }
+
   function home() {
     stopTimer();
     session = null;
+    const summary = progressSummary();
     app.innerHTML = `
       <header class="site-header"><div class="brand">Arch<span>Ready</span></div><span class="tag">${bank.length} questions</span></header>
       <div class="shell hero">
@@ -113,6 +137,18 @@
           <div class="mode"><h3>Full mock</h3><p>65 questions with a 130-minute countdown.</p><button class="btn" data-start="mock">Begin timed exam</button></div>
           <div class="mode"><h3>Custom session</h3><p>Choose a smaller or larger untimed question set.</p><div class="custom-controls"><div class="field"><label for="custom-count">Questions</label><input id="custom-count" type="number" min="5" max="65" value="20"></div><button class="btn" data-start="custom">Start custom</button></div></div>
         </aside>
+      </div>
+      <div class="shell progress-section">
+        <section class="metric-grid" aria-label="Learning progress">
+          <div class="metric"><span>Overall accuracy</span><strong>${summary.accuracy}%</strong><small>Across every answered question</small></div>
+          <div class="metric"><span>Questions explored</span><strong>${summary.explored}</strong><small>of ${bank.length} available</small></div>
+          <div class="metric"><span>Completed sessions</span><strong>${summary.sessions}</strong><small>Practice and full mocks</small></div>
+          <div class="metric"><span>Focused study</span><strong>${summary.studyTime}</strong><small>Recorded session time</small></div>
+        </section>
+        <section class="panel recent-panel">
+          <div class="section-heading"><div><div class="eyebrow">Recent activity</div><h2>Your latest sessions</h2></div></div>
+          ${progress.attempts.length ? `<div class="activity-list">${progress.attempts.slice(0, 5).map((attempt) => `<div class="activity-item"><span class="activity-score">${attempt.score}%</span><div><strong>${attempt.mode === 'mock' ? 'Full mock exam' : attempt.mode === 'custom' ? 'Custom practice' : 'Quick practice'}</strong><small>${formatDate(attempt.completedAt)} · ${attempt.total} questions · ${formatDuration(attempt.duration)}</small></div><span class="tag">${attempt.correct}/${attempt.total}</span></div>`).join('')}</div>` : '<div class="empty-progress"><strong>No sessions yet</strong><p class="subtext">Complete a practice set to start building your learning history.</p></div>'}
+        </section>
       </div>`;
   }
 
