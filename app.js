@@ -101,7 +101,8 @@
     const questions = shuffle(bank, Date.now()).slice(0, count).map((question) => ({
       ...question,
       options: optionsFor(question),
-      selected: []
+      selected: [],
+      submitted: false
     }));
     session = {
       mode,
@@ -118,6 +119,8 @@
   function renderExam() {
     const question = session.questions[session.index];
     const required = Math.max(1, Number(question.selectionsRequired) || 1);
+    const showFeedback = session.mode !== 'mock' && question.submitted;
+    const correct = isCorrect(question);
     app.innerHTML = `
       <header class="exam-header">
         <div class="brand">Arch<span>Ready</span></div>
@@ -129,12 +132,15 @@
           <div class="question-meta"><div><span class="tag">${escapeHTML(question.category || 'AWS')}</span> <span class="tag">Choose ${required}</span></div><button class="flag ${session.flagged.includes(session.index) ? 'active' : ''}" data-flag>${session.flagged.includes(session.index) ? 'Flagged' : 'Flag for review'}</button></div>
           <div class="question-text">${escapeHTML(question.question)}</div>
           <div class="options">${question.options.map((option, index) => `
-            <button class="option ${question.selected.includes(index) ? 'selected' : ''}" data-option="${index}">
+            <button class="option ${question.selected.includes(index) ? 'selected' : ''} ${showFeedback && option.correct ? 'correct' : ''} ${showFeedback && question.selected.includes(index) && !option.correct ? 'incorrect' : ''}" data-option="${index}" ${showFeedback ? 'disabled' : ''}>
               <span class="option-key">${String.fromCharCode(65 + index)}</span><span>${escapeHTML(option.text)}</span>
             </button>`).join('')}</div>
+          ${showFeedback ? `<section class="feedback ${correct ? '' : 'wrong'}" role="status"><strong>${correct ? 'Correct' : 'Not quite'}</strong><p>${escapeHTML(question.explanation || `The supplied answer is: ${answerParts(question).join('; ')}`)}</p></section>` : ''}
           <div class="question-actions">
             <button class="btn" data-previous ${session.index === 0 ? 'disabled' : ''}>Previous</button>
-            <button class="btn btn-primary" data-next>${session.index === session.questions.length - 1 ? 'Submit exam' : 'Next question'}</button>
+            ${session.mode !== 'mock' && !question.submitted
+              ? `<button class="btn btn-primary" data-check ${question.selected.length !== required ? 'disabled' : ''}>Check answer</button>`
+              : `<button class="btn btn-primary" data-next>${session.index === session.questions.length - 1 ? 'Submit exam' : 'Next question'}</button>`}
           </div>
         </article>
         <aside class="navigator">
@@ -148,6 +154,7 @@
 
   function selectOption(index) {
     const question = session.questions[session.index];
+    if (question.submitted) return;
     const required = Math.max(1, Number(question.selectionsRequired) || 1);
     if (question.selected.includes(index)) {
       question.selected = question.selected.filter((value) => value !== index);
@@ -159,24 +166,75 @@
     renderExam();
   }
 
+  function isCorrect(question) {
+    const expected = question.options.map((option, index) => option.correct ? index : -1).filter((index) => index >= 0);
+    return expected.length === question.selected.length && expected.every((index) => question.selected.includes(index));
+  }
+
+  function questionStatus(question) {
+    if (!question.selected.length) return 'unanswered';
+    return isCorrect(question) ? 'correct' : 'incorrect';
+  }
+
   function finish(force = false) {
     const unanswered = session.questions.filter((question) => !question.selected.length).length;
     if (!force && unanswered && !window.confirm(`${unanswered} question${unanswered === 1 ? '' : 's'} remain unanswered. Submit anyway?`)) return;
     stopTimer();
     const answered = session.questions.filter((question) => question.selected.length).length;
-    const correct = session.questions.filter((question) => {
-      const expected = question.options.map((option, index) => option.correct ? index : -1).filter((index) => index >= 0);
-      return expected.length === question.selected.length && expected.every((index) => question.selected.includes(index));
-    }).length;
+    const correct = session.questions.filter(isCorrect).length;
     const score = Math.round((correct / session.questions.length) * 100);
+    session.result = { answered, correct, score };
+    renderResults();
+  }
+
+  function renderResults() {
+    const { answered, correct, score } = session.result;
     app.innerHTML = `
       <header class="site-header"><div class="brand">Arch<span>Ready</span></div></header>
       <div class="shell"><section class="panel">
         <div class="eyebrow">Session complete</div><h1>${score}%</h1>
         <p class="subtext">Your ${session.mode === 'mock' ? 'full mock' : 'practice session'} has been scored.</p>
         <div class="summary"><div><strong>${correct}</strong><span>Correct</span></div><div><strong>${answered}</strong><span>Answered</span></div><div><strong>${session.questions.length - answered}</strong><span>Unanswered</span></div></div>
-        <div class="actions"><button class="btn btn-primary" data-home>Return home</button><button class="btn" data-restart>Try another session</button></div>
+        <div class="actions"><button class="btn btn-primary" data-review="incorrect">Review missed answers</button><button class="btn" data-review="all">Review all</button><button class="btn" data-home>Return home</button><button class="btn" data-restart>Try another session</button></div>
       </section></div>`;
+  }
+
+  function renderReview(filter = 'all') {
+    const totals = session.questions.reduce((counts, question, index) => {
+      counts[questionStatus(question)] += 1;
+      if (session.flagged.includes(index)) counts.flagged += 1;
+      return counts;
+    }, { correct: 0, incorrect: 0, unanswered: 0, flagged: 0 });
+    const questions = session.questions
+      .map((question, index) => ({ question, index, status: questionStatus(question) }))
+      .filter((item) => filter === 'all' || item.status === filter || (filter === 'flagged' && session.flagged.includes(item.index)));
+    app.innerHTML = `
+      <header class="site-header"><div class="brand">Arch<span>Ready</span></div><button class="btn" data-results>Back to results</button></header>
+      <div class="shell review-shell">
+        <section class="review-heading">
+          <div><div class="eyebrow">Answer review</div><h2>Understand every decision.</h2><p class="subtext">Compare your selections with the supplied answer and explanation.</p></div>
+          <div class="review-filters" aria-label="Filter reviewed questions">
+            <button class="btn ${filter === 'all' ? 'btn-primary' : ''}" data-review="all" aria-pressed="${filter === 'all'}">All ${session.questions.length}</button>
+            <button class="btn ${filter === 'correct' ? 'btn-primary' : ''}" data-review="correct" aria-pressed="${filter === 'correct'}">Correct ${totals.correct}</button>
+            <button class="btn ${filter === 'incorrect' ? 'btn-primary' : ''}" data-review="incorrect" aria-pressed="${filter === 'incorrect'}">Incorrect ${totals.incorrect}</button>
+            <button class="btn ${filter === 'unanswered' ? 'btn-primary' : ''}" data-review="unanswered" aria-pressed="${filter === 'unanswered'}">Unanswered ${totals.unanswered}</button>
+            <button class="btn ${filter === 'flagged' ? 'btn-primary' : ''}" data-review="flagged" aria-pressed="${filter === 'flagged'}">Flagged ${totals.flagged}</button>
+          </div>
+        </section>
+        <section class="review-totals" aria-label="Review totals"><span><strong>${totals.correct}</strong> correct</span><span><strong>${totals.incorrect}</strong> incorrect</span><span><strong>${totals.unanswered}</strong> unanswered</span><span><strong>${totals.flagged}</strong> flagged</span></section>
+        <div class="review-list">${questions.length ? questions.map(({ question, index, status }) => {
+          const selected = question.selected.map((selectedIndex) => question.options[selectedIndex]?.text).filter(Boolean);
+          return `<article class="review-card ${status}">
+            <div class="review-card-head"><span class="tag">Question ${index + 1}</span><span class="result-badge ${status}">${status}</span></div>
+            <h3>${escapeHTML(question.question)}</h3>
+            <div class="answer-comparison">
+              <div><span>Your answer</span><p>${selected.length ? selected.map(escapeHTML).join('<br>') : 'No answer selected'}</p></div>
+              <div><span>Correct answer</span><p>${answerParts(question).map(escapeHTML).join('<br>')}</p></div>
+            </div>
+            <div class="review-explanation"><strong>Why</strong><p>${escapeHTML(question.explanation || 'No detailed explanation was supplied for this question.')}</p></div>
+          </article>`;
+        }).join('') : '<div class="panel"><p class="subtext">No questions match this filter.</p></div>'}</div>
+      </div>`;
   }
 
   function startTimer() {
@@ -202,6 +260,10 @@
     if (!target) return;
     if (target.dataset.start) start(target.dataset.start);
     if (target.dataset.option !== undefined) selectOption(Number(target.dataset.option));
+    if (target.hasAttribute('data-check')) {
+      session.questions[session.index].submitted = true;
+      renderExam();
+    }
     if (target.dataset.jump !== undefined) { session.index = Number(target.dataset.jump); renderExam(); }
     if (target.hasAttribute('data-flag')) {
       session.flagged = session.flagged.includes(session.index)
@@ -215,6 +277,8 @@
       else { session.index += 1; renderExam(); }
     }
     if (target.hasAttribute('data-submit')) finish();
+    if (target.dataset.review) renderReview(target.dataset.review);
+    if (target.hasAttribute('data-results')) renderResults();
     if (target.hasAttribute('data-home')) home();
     if (target.hasAttribute('data-restart')) start(session.mode);
   });
