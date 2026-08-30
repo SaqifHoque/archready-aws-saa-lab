@@ -4,9 +4,34 @@
   const bank = (window.AWS_QUESTION_BANK || []).filter((question) =>
     question.question?.trim().length >= 8 && question.answer
   );
+  const storeKey = 'archready-progress-v1';
   const app = document.querySelector('#app');
   let timerId = null;
   let session = null;
+
+  function loadProgress() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(storeKey) || '{}');
+      return {
+        attempts: Array.isArray(saved.attempts) ? saved.attempts : [],
+        stats: saved.stats && typeof saved.stats === 'object' ? saved.stats : {},
+        totalSeconds: Number(saved.totalSeconds) || 0,
+        studyDates: Array.isArray(saved.studyDates) ? saved.studyDates : []
+      };
+    } catch {
+      return { attempts: [], stats: {}, totalSeconds: 0, studyDates: [] };
+    }
+  }
+
+  const progress = loadProgress();
+
+  function saveProgress() {
+    try { localStorage.setItem(storeKey, JSON.stringify(progress)); } catch { /* Browser storage can be unavailable. */ }
+  }
+
+  function todayKey(date = new Date()) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  }
 
   const escapeHTML = (value = '') => String(value).replace(/[&<>"']/g, (character) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -71,9 +96,85 @@
     return `${String(Math.floor(safe / 60)).padStart(2, '0')}:${String(safe % 60).padStart(2, '0')}`;
   }
 
+  function formatDuration(seconds) {
+    if (seconds < 60) return `${seconds}s`;
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.round((seconds % 3600) / 60);
+    return hours ? `${hours}h ${minutes}m` : `${minutes} min`;
+  }
+
+  function formatDate(timestamp) {
+    return new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(timestamp));
+  }
+
+  function modeTitle(mode) {
+    if (mode === 'mock') return 'Full mock exam';
+    if (mode === 'review') return 'Weak-area drill';
+    if (mode === 'custom') return 'Custom practice';
+    return 'Quick practice';
+  }
+
+  function progressSummary() {
+    const questionStats = Object.values(progress.stats);
+    const answers = questionStats.reduce((total, stat) => total + stat.attempts, 0);
+    const correct = questionStats.reduce((total, stat) => total + stat.correct, 0);
+    return {
+      accuracy: answers ? Math.round((correct / answers) * 100) : 0,
+      explored: questionStats.length,
+      sessions: progress.attempts.length,
+      studyTime: formatDuration(progress.totalSeconds)
+    };
+  }
+
+  function readinessSummary() {
+    const summary = progressSummary();
+    const mocks = progress.attempts.filter((attempt) => attempt.mode === 'mock' && attempt.answered > 0);
+    const latestMocks = mocks.slice(0, 5);
+    const gateMocks = mocks.slice(0, 4);
+    const mockAverage = latestMocks.length
+      ? Math.round(latestMocks.reduce((total, attempt) => total + attempt.score, 0) / latestMocks.length)
+      : 0;
+    const coverage = Math.min(100, Math.round((summary.explored / Math.min(250, bank.length)) * 100));
+    const scores = latestMocks.map((attempt) => attempt.score);
+    const consistency = scores.length > 1 ? Math.max(0, 100 - (Math.max(...scores) - Math.min(...scores))) : 0;
+    const score = Math.round((summary.accuracy * 0.55) + (mockAverage * 0.25) + (coverage * 0.15) + (consistency * 0.05));
+    const qualifyingMocks = gateMocks.filter((attempt) => attempt.score >= 85).length;
+    return {
+      score,
+      mockAverage,
+      coverage,
+      qualifyingMocks,
+      gateCount: gateMocks.length,
+      examReady: qualifyingMocks >= 3
+    };
+  }
+
+  function weakQuestionPool() {
+    const attempted = bank.filter((question) => {
+      const stat = progress.stats[question.id];
+      return stat && stat.attempts > 0 && (stat.correct / stat.attempts) < 0.75;
+    });
+    const categoryTotals = Object.values(progress.stats).reduce((totals, stat) => {
+      const category = stat.category || 'AWS';
+      const current = totals[category] || { attempts: 0, correct: 0 };
+      current.attempts += stat.attempts;
+      current.correct += stat.correct;
+      totals[category] = current;
+      return totals;
+    }, {});
+    const weakestCategory = Object.entries(categoryTotals)
+      .filter(([, value]) => value.attempts > 0)
+      .sort(([, left], [, right]) => (left.correct / left.attempts) - (right.correct / right.attempts))[0]?.[0];
+    const categoryQuestions = weakestCategory ? bank.filter((question) => question.category === weakestCategory) : [];
+    const combined = [...attempted, ...categoryQuestions, ...bank];
+    return [...new Map(combined.map((question) => [question.id, question])).values()];
+  }
+
   function home() {
     stopTimer();
     session = null;
+    const summary = progressSummary();
+    const readiness = readinessSummary();
     app.innerHTML = `
       <header class="site-header"><div class="brand">Arch<span>Ready</span></div><span class="tag">${bank.length} questions</span></header>
       <div class="shell hero">
@@ -81,24 +182,45 @@
           <div class="eyebrow">AWS Solutions Architect Associate</div>
           <h1>Practice the decision, not the guess.</h1>
           <p class="subtext">Build exam stamina with focused practice or a complete 65-question, 130-minute simulation.</p>
-          <div class="actions"><button class="btn btn-primary" data-start="practice">Start quick practice</button><button class="btn" data-start="mock">Take full mock</button></div>
+          <div class="actions"><button class="btn btn-primary" data-start="practice">Start quick practice</button><button class="btn" data-start="review">Train weak areas</button><button class="btn" data-start="mock">Take full mock</button></div>
         </section>
         <aside class="panel session-options">
           <div class="mode"><h3>Quick practice</h3><p>10 untimed questions for a focused study block.</p><button class="btn" data-start="practice">Begin 10 questions</button></div>
           <div class="mode"><h3>Full mock</h3><p>65 questions with a 130-minute countdown.</p><button class="btn" data-start="mock">Begin timed exam</button></div>
+          <div class="mode"><h3>Weak-area drill</h3><p>15 adaptive questions based on your lowest-performing material.</p><button class="btn" data-start="review">Train weak areas</button></div>
           <div class="mode"><h3>Custom session</h3><p>Choose a smaller or larger untimed question set.</p><div class="custom-controls"><div class="field"><label for="custom-count">Questions</label><input id="custom-count" type="number" min="5" max="65" value="20"></div><button class="btn" data-start="custom">Start custom</button></div></div>
         </aside>
+      </div>
+      <div class="shell progress-section">
+        <section class="metric-grid" aria-label="Learning progress">
+          <div class="metric"><span>Overall accuracy</span><strong>${summary.accuracy}%</strong><small>Across every answered question</small></div>
+          <div class="metric"><span>Questions explored</span><strong>${summary.explored}</strong><small>of ${bank.length} available</small></div>
+          <div class="metric"><span>Completed sessions</span><strong>${summary.sessions}</strong><small>Practice and full mocks</small></div>
+          <div class="metric"><span>Focused study</span><strong>${summary.studyTime}</strong><small>Recorded session time</small></div>
+        </section>
+        <section class="panel readiness-panel">
+          <div class="readiness-ring" style="--readiness:${readiness.score}" aria-label="Learning readiness ${readiness.score} percent"><strong>${readiness.score}%</strong><span>learning score</span></div>
+          <div><div class="eyebrow">Readiness evidence</div><h2>${readiness.examReady ? 'You are exam-ready.' : 'Build repeatable mock results.'}</h2><p class="subtext">${readiness.examReady ? `${readiness.qualifyingMocks} of your latest ${readiness.gateCount} full mocks reached 85% or higher.` : `Exam-ready status requires at least 3 of the latest 4 full mocks at 85% or higher. You currently have ${readiness.qualifyingMocks} qualifying result${readiness.qualifyingMocks === 1 ? '' : 's'}.`}</p><div class="readiness-signals"><span>Accuracy <strong>${summary.accuracy}%</strong></span><span>Mock average <strong>${readiness.mockAverage}%</strong></span><span>Coverage <strong>${readiness.coverage}%</strong></span></div></div>
+          <button class="btn btn-primary" data-start="mock">Take a full mock</button>
+        </section>
+        <section class="panel recent-panel">
+          <div class="section-heading"><div><div class="eyebrow">Recent activity</div><h2>Your latest sessions</h2></div></div>
+          ${progress.attempts.length ? `<div class="activity-list">${progress.attempts.slice(0, 5).map((attempt) => `<div class="activity-item"><span class="activity-score">${attempt.score}%</span><div><strong>${modeTitle(attempt.mode)}</strong><small>${formatDate(attempt.completedAt)} · ${attempt.total} questions · ${formatDuration(attempt.duration)}</small></div><span class="tag">${attempt.correct}/${attempt.total}</span></div>`).join('')}</div>` : '<div class="empty-progress"><strong>No sessions yet</strong><p class="subtext">Complete a practice set to start building your learning history.</p></div>'}
+        </section>
       </div>`;
   }
 
   function start(mode) {
     const requested = Number(document.querySelector('#custom-count')?.value) || 20;
+    const source = mode === 'review' ? weakQuestionPool() : bank;
     const count = mode === 'mock'
       ? Math.min(65, bank.length)
+      : mode === 'review'
+        ? Math.min(15, source.length)
       : mode === 'custom'
         ? Math.min(Math.max(requested, 5), 65, bank.length)
         : Math.min(10, bank.length);
-    const questions = shuffle(bank, Date.now()).slice(0, count).map((question) => ({
+    const questions = shuffle(source, Date.now()).slice(0, count).map((question) => ({
       ...question,
       options: optionsFor(question),
       selected: [],
@@ -176,15 +298,63 @@
     return isCorrect(question) ? 'correct' : 'incorrect';
   }
 
+  function recordAttempt() {
+    const completedAt = Date.now();
+    const duration = Math.max(0, Math.round((completedAt - session.startedAt) / 1000));
+    const attempt = {
+      id: `${completedAt}-${Math.random().toString(36).slice(2, 8)}`,
+      mode: session.mode,
+      completedAt,
+      duration,
+      total: session.questions.length,
+      ...session.result,
+      results: session.questions.map((question) => ({
+        qid: question.id,
+        category: question.category || 'AWS',
+        correct: isCorrect(question),
+        answered: question.selected.length > 0
+      }))
+    };
+
+    progress.attempts.unshift(attempt);
+    progress.attempts = progress.attempts.slice(0, 100);
+    progress.totalSeconds += duration;
+    progress.studyDates = [...new Set([...progress.studyDates, todayKey()])].slice(-365);
+    for (const result of attempt.results) {
+      if (!result.answered) continue;
+      const stat = progress.stats[result.qid] || { attempts: 0, correct: 0, category: result.category };
+      stat.attempts += 1;
+      stat.correct += result.correct ? 1 : 0;
+      stat.lastAttemptedAt = completedAt;
+      progress.stats[result.qid] = stat;
+    }
+    saveProgress();
+  }
+
   function finish(force = false) {
     const unanswered = session.questions.filter((question) => !question.selected.length).length;
     if (!force && unanswered && !window.confirm(`${unanswered} question${unanswered === 1 ? '' : 's'} remain unanswered. Submit anyway?`)) return;
     stopTimer();
     const answered = session.questions.filter((question) => question.selected.length).length;
+    if (!answered) {
+      renderIncomplete();
+      return;
+    }
     const correct = session.questions.filter(isCorrect).length;
     const score = Math.round((correct / session.questions.length) * 100);
     session.result = { answered, correct, score };
+    recordAttempt();
     renderResults();
+  }
+
+  function renderIncomplete() {
+    app.innerHTML = `
+      <header class="site-header"><div class="brand">Arch<span>Ready</span></div></header>
+      <div class="shell"><section class="panel">
+        <div class="eyebrow">Session incomplete</div><h1>No result recorded.</h1>
+        <p class="subtext">At least one answered question is required before a session can affect history, accuracy, or readiness.</p>
+        <div class="actions"><button class="btn btn-primary" data-home>Return home</button><button class="btn" data-restart>Try again</button></div>
+      </section></div>`;
   }
 
   function renderResults() {
@@ -193,7 +363,7 @@
       <header class="site-header"><div class="brand">Arch<span>Ready</span></div></header>
       <div class="shell"><section class="panel">
         <div class="eyebrow">Session complete</div><h1>${score}%</h1>
-        <p class="subtext">Your ${session.mode === 'mock' ? 'full mock' : 'practice session'} has been scored.</p>
+        <p class="subtext">Your ${session.mode === 'mock' ? 'full mock' : session.mode === 'review' ? 'weak-area drill' : 'practice session'} has been scored.</p>
         <div class="summary"><div><strong>${correct}</strong><span>Correct</span></div><div><strong>${answered}</strong><span>Answered</span></div><div><strong>${session.questions.length - answered}</strong><span>Unanswered</span></div></div>
         <div class="actions"><button class="btn btn-primary" data-review="incorrect">Review missed answers</button><button class="btn" data-review="all">Review all</button><button class="btn" data-home>Return home</button><button class="btn" data-restart>Try another session</button></div>
       </section></div>`;
