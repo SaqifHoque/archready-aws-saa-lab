@@ -79,15 +79,35 @@ h1 { margin: 12px 0 14px; font-size: clamp(38px, 6vw, 66px); line-height: 0.98; 
 .summary strong { display: block; font-size: 25px; }
 .summary span { color: var(--muted); font-size: 12px; }
 .notice { border-left: 4px solid var(--orange); background: var(--orange-soft); padding: 14px 16px; border-radius: 9px; color: #7f451e; }
+.review-shell { width: min(980px, calc(100% - 36px)); }
+.review-heading { display: flex; justify-content: space-between; align-items: end; gap: 24px; margin-bottom: 24px; }
+.review-heading h2 { margin: 8px 0; font-size: clamp(30px, 5vw, 48px); letter-spacing: -0.04em; }
+.review-filters { display: flex; gap: 8px; flex-wrap: wrap; }
+.review-list { display: grid; gap: 18px; }
+.review-card { background: var(--surface); border: 1px solid var(--line); border-left: 5px solid var(--green); border-radius: 18px; padding: clamp(22px, 4vw, 34px); }
+.review-card.incorrect { border-left-color: var(--red); }
+.review-card.unanswered { border-left-color: var(--orange); }
+.review-card-head { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 19px; }
+.review-card h3 { font-family: Georgia, "Times New Roman", serif; font-size: 21px; line-height: 1.45; }
+.result-badge { border-radius: 99px; padding: 5px 9px; background: var(--green-soft); color: var(--green-dark); font-size: 11px; font-weight: 850; text-transform: capitalize; }
+.result-badge.incorrect { background: var(--red-soft); color: var(--red); }
+.result-badge.unanswered { background: var(--orange-soft); color: #9a4a1f; }
+.answer-comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 20px 0; }
+.answer-comparison > div { padding: 16px; border-radius: 12px; background: var(--paper); }
+.answer-comparison span { color: var(--muted); font-size: 11px; font-weight: 850; text-transform: uppercase; letter-spacing: 0.06em; }
+.answer-comparison p { margin: 8px 0 0; line-height: 1.55; }
+.review-explanation { border-top: 1px solid var(--line); padding-top: 18px; }
+.review-explanation p { margin: 7px 0 0; color: var(--muted); line-height: 1.65; white-space: pre-line; }
 @media (max-width: 820px) {
   .hero, .exam-layout { grid-template-columns: 1fr; }
   .navigator { position: static; }
   .exam-header { grid-template-columns: 1fr auto; }
   .exam-progress-label { grid-column: 1 / -1; grid-row: 2; }
+  .review-heading { align-items: start; flex-direction: column; }
 }
 @media (max-width: 560px) {
   .shell { width: min(100% - 24px, 1120px); padding-top: 24px; }
-  .custom-controls, .summary { grid-template-columns: 1fr; }
+  .custom-controls, .summary, .answer-comparison { grid-template-columns: 1fr; }
   .exam-layout { width: min(100% - 20px, 1180px); margin-top: 16px; }
   .question-card { min-height: 560px; padding: 20px; }
   .question-actions { align-items: stretch; flex-direction: column; }

@@ -171,6 +171,11 @@
     return expected.length === question.selected.length && expected.every((index) => question.selected.includes(index));
   }
 
+  function questionStatus(question) {
+    if (!question.selected.length) return 'unanswered';
+    return isCorrect(question) ? 'correct' : 'incorrect';
+  }
+
   function finish(force = false) {
     const unanswered = session.questions.filter((question) => !question.selected.length).length;
     if (!force && unanswered && !window.confirm(`${unanswered} question${unanswered === 1 ? '' : 's'} remain unanswered. Submit anyway?`)) return;
@@ -178,14 +183,50 @@
     const answered = session.questions.filter((question) => question.selected.length).length;
     const correct = session.questions.filter(isCorrect).length;
     const score = Math.round((correct / session.questions.length) * 100);
+    session.result = { answered, correct, score };
+    renderResults();
+  }
+
+  function renderResults() {
+    const { answered, correct, score } = session.result;
     app.innerHTML = `
       <header class="site-header"><div class="brand">Arch<span>Ready</span></div></header>
       <div class="shell"><section class="panel">
         <div class="eyebrow">Session complete</div><h1>${score}%</h1>
         <p class="subtext">Your ${session.mode === 'mock' ? 'full mock' : 'practice session'} has been scored.</p>
         <div class="summary"><div><strong>${correct}</strong><span>Correct</span></div><div><strong>${answered}</strong><span>Answered</span></div><div><strong>${session.questions.length - answered}</strong><span>Unanswered</span></div></div>
-        <div class="actions"><button class="btn btn-primary" data-home>Return home</button><button class="btn" data-restart>Try another session</button></div>
+        <div class="actions"><button class="btn btn-primary" data-review="all">Review answers</button><button class="btn" data-home>Return home</button><button class="btn" data-restart>Try another session</button></div>
       </section></div>`;
+  }
+
+  function renderReview(filter = 'all') {
+    const questions = session.questions
+      .map((question, index) => ({ question, index, status: questionStatus(question) }))
+      .filter((item) => filter === 'all' || item.status === filter);
+    app.innerHTML = `
+      <header class="site-header"><div class="brand">Arch<span>Ready</span></div><button class="btn" data-results>Back to results</button></header>
+      <div class="shell review-shell">
+        <section class="review-heading">
+          <div><div class="eyebrow">Answer review</div><h2>Understand every decision.</h2><p class="subtext">Compare your selections with the supplied answer and explanation.</p></div>
+          <div class="review-filters">
+            <button class="btn ${filter === 'all' ? 'btn-primary' : ''}" data-review="all">All</button>
+            <button class="btn ${filter === 'incorrect' ? 'btn-primary' : ''}" data-review="incorrect">Incorrect</button>
+            <button class="btn ${filter === 'unanswered' ? 'btn-primary' : ''}" data-review="unanswered">Unanswered</button>
+          </div>
+        </section>
+        <div class="review-list">${questions.length ? questions.map(({ question, index, status }) => {
+          const selected = question.selected.map((selectedIndex) => question.options[selectedIndex]?.text).filter(Boolean);
+          return `<article class="review-card ${status}">
+            <div class="review-card-head"><span class="tag">Question ${index + 1}</span><span class="result-badge ${status}">${status}</span></div>
+            <h3>${escapeHTML(question.question)}</h3>
+            <div class="answer-comparison">
+              <div><span>Your answer</span><p>${selected.length ? selected.map(escapeHTML).join('<br>') : 'No answer selected'}</p></div>
+              <div><span>Correct answer</span><p>${answerParts(question).map(escapeHTML).join('<br>')}</p></div>
+            </div>
+            <div class="review-explanation"><strong>Why</strong><p>${escapeHTML(question.explanation || 'No detailed explanation was supplied for this question.')}</p></div>
+          </article>`;
+        }).join('') : '<div class="panel"><p class="subtext">No questions match this filter.</p></div>'}</div>
+      </div>`;
   }
 
   function startTimer() {
@@ -228,6 +269,8 @@
       else { session.index += 1; renderExam(); }
     }
     if (target.hasAttribute('data-submit')) finish();
+    if (target.dataset.review) renderReview(target.dataset.review);
+    if (target.hasAttribute('data-results')) renderResults();
     if (target.hasAttribute('data-home')) home();
     if (target.hasAttribute('data-restart')) start(session.mode);
   });
