@@ -101,7 +101,8 @@
     const questions = shuffle(bank, Date.now()).slice(0, count).map((question) => ({
       ...question,
       options: optionsFor(question),
-      selected: []
+      selected: [],
+      submitted: false
     }));
     session = {
       mode,
@@ -118,6 +119,8 @@
   function renderExam() {
     const question = session.questions[session.index];
     const required = Math.max(1, Number(question.selectionsRequired) || 1);
+    const showFeedback = session.mode !== 'mock' && question.submitted;
+    const correct = isCorrect(question);
     app.innerHTML = `
       <header class="exam-header">
         <div class="brand">Arch<span>Ready</span></div>
@@ -129,12 +132,15 @@
           <div class="question-meta"><div><span class="tag">${escapeHTML(question.category || 'AWS')}</span> <span class="tag">Choose ${required}</span></div><button class="flag ${session.flagged.includes(session.index) ? 'active' : ''}" data-flag>${session.flagged.includes(session.index) ? 'Flagged' : 'Flag for review'}</button></div>
           <div class="question-text">${escapeHTML(question.question)}</div>
           <div class="options">${question.options.map((option, index) => `
-            <button class="option ${question.selected.includes(index) ? 'selected' : ''}" data-option="${index}">
+            <button class="option ${question.selected.includes(index) ? 'selected' : ''} ${showFeedback && option.correct ? 'correct' : ''} ${showFeedback && question.selected.includes(index) && !option.correct ? 'incorrect' : ''}" data-option="${index}" ${showFeedback ? 'disabled' : ''}>
               <span class="option-key">${String.fromCharCode(65 + index)}</span><span>${escapeHTML(option.text)}</span>
             </button>`).join('')}</div>
+          ${showFeedback ? `<section class="feedback ${correct ? '' : 'wrong'}" role="status"><strong>${correct ? 'Correct' : 'Not quite'}</strong><p>${escapeHTML(question.explanation || `The supplied answer is: ${answerParts(question).join('; ')}`)}</p></section>` : ''}
           <div class="question-actions">
             <button class="btn" data-previous ${session.index === 0 ? 'disabled' : ''}>Previous</button>
-            <button class="btn btn-primary" data-next>${session.index === session.questions.length - 1 ? 'Submit exam' : 'Next question'}</button>
+            ${session.mode !== 'mock' && !question.submitted
+              ? `<button class="btn btn-primary" data-check ${question.selected.length !== required ? 'disabled' : ''}>Check answer</button>`
+              : `<button class="btn btn-primary" data-next>${session.index === session.questions.length - 1 ? 'Submit exam' : 'Next question'}</button>`}
           </div>
         </article>
         <aside class="navigator">
@@ -148,6 +154,7 @@
 
   function selectOption(index) {
     const question = session.questions[session.index];
+    if (question.submitted) return;
     const required = Math.max(1, Number(question.selectionsRequired) || 1);
     if (question.selected.includes(index)) {
       question.selected = question.selected.filter((value) => value !== index);
@@ -159,15 +166,17 @@
     renderExam();
   }
 
+  function isCorrect(question) {
+    const expected = question.options.map((option, index) => option.correct ? index : -1).filter((index) => index >= 0);
+    return expected.length === question.selected.length && expected.every((index) => question.selected.includes(index));
+  }
+
   function finish(force = false) {
     const unanswered = session.questions.filter((question) => !question.selected.length).length;
     if (!force && unanswered && !window.confirm(`${unanswered} question${unanswered === 1 ? '' : 's'} remain unanswered. Submit anyway?`)) return;
     stopTimer();
     const answered = session.questions.filter((question) => question.selected.length).length;
-    const correct = session.questions.filter((question) => {
-      const expected = question.options.map((option, index) => option.correct ? index : -1).filter((index) => index >= 0);
-      return expected.length === question.selected.length && expected.every((index) => question.selected.includes(index));
-    }).length;
+    const correct = session.questions.filter(isCorrect).length;
     const score = Math.round((correct / session.questions.length) * 100);
     app.innerHTML = `
       <header class="site-header"><div class="brand">Arch<span>Ready</span></div></header>
@@ -202,6 +211,10 @@
     if (!target) return;
     if (target.dataset.start) start(target.dataset.start);
     if (target.dataset.option !== undefined) selectOption(Number(target.dataset.option));
+    if (target.hasAttribute('data-check')) {
+      session.questions[session.index].submitted = true;
+      renderExam();
+    }
     if (target.dataset.jump !== undefined) { session.index = Number(target.dataset.jump); renderExam(); }
     if (target.hasAttribute('data-flag')) {
       session.flagged = session.flagged.includes(session.index)
