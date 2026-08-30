@@ -85,6 +85,14 @@ h1 { margin: 12px 0 14px; font-size: clamp(38px, 6vw, 66px); line-height: 0.98; 
 .metric span, .metric small { display: block; color: var(--muted); font-size: 12px; }
 .metric strong { display: block; margin: 8px 0 5px; font-size: 30px; letter-spacing: -0.04em; }
 .recent-panel { padding: 28px; }
+.readiness-panel { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 24px; align-items: center; margin-bottom: 22px; padding: 28px; }
+.readiness-panel h2 { margin: 7px 0; }
+.readiness-ring { --value: calc(var(--readiness) * 1%); width: 112px; aspect-ratio: 1; display: grid; place-content: center; text-align: center; border-radius: 50%; background: radial-gradient(circle at center, var(--surface) 61%, transparent 62%), conic-gradient(var(--green) var(--value), var(--line) 0); }
+.readiness-ring strong { display: block; font-size: 25px; }
+.readiness-ring span { color: var(--muted); font-size: 10px; }
+.readiness-signals { display: flex; gap: 9px; flex-wrap: wrap; margin-top: 14px; }
+.readiness-signals span { padding: 7px 9px; border-radius: 8px; background: var(--paper); color: var(--muted); font-size: 11px; }
+.readiness-signals strong { color: var(--ink); }
 .section-heading h2 { margin: 7px 0 0; }
 .activity-list { margin-top: 20px; }
 .activity-item { display: grid; grid-template-columns: 52px 1fr auto; align-items: center; gap: 13px; padding: 14px 0; border-bottom: 1px solid var(--line); }
@@ -121,12 +129,16 @@ h1 { margin: 12px 0 14px; font-size: clamp(38px, 6vw, 66px); line-height: 0.98; 
   .exam-progress-label { grid-column: 1 / -1; grid-row: 2; }
   .review-heading { align-items: start; flex-direction: column; }
   .metric-grid { grid-template-columns: repeat(2, 1fr); }
+  .readiness-panel { grid-template-columns: auto 1fr; }
+  .readiness-panel > .btn { grid-column: 2; justify-self: start; }
 }
 @media (max-width: 560px) {
   .shell { width: min(100% - 24px, 1120px); padding-top: 24px; }
   .custom-controls, .summary, .answer-comparison, .metric-grid { grid-template-columns: 1fr; }
   .activity-item { grid-template-columns: 48px 1fr; }
   .activity-item > .tag { grid-column: 2; justify-self: start; }
+  .readiness-panel { grid-template-columns: 1fr; }
+  .readiness-panel > .btn { grid-column: 1; }
   .exam-layout { width: min(100% - 20px, 1180px); margin-top: 16px; }
   .question-card { min-height: 560px; padding: 20px; }
   .question-actions { align-items: stretch; flex-direction: column; }
