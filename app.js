@@ -4,9 +4,34 @@
   const bank = (window.AWS_QUESTION_BANK || []).filter((question) =>
     question.question?.trim().length >= 8 && question.answer
   );
+  const storeKey = 'archready-progress-v1';
   const app = document.querySelector('#app');
   let timerId = null;
   let session = null;
+
+  function loadProgress() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(storeKey) || '{}');
+      return {
+        attempts: Array.isArray(saved.attempts) ? saved.attempts : [],
+        stats: saved.stats && typeof saved.stats === 'object' ? saved.stats : {},
+        totalSeconds: Number(saved.totalSeconds) || 0,
+        studyDates: Array.isArray(saved.studyDates) ? saved.studyDates : []
+      };
+    } catch {
+      return { attempts: [], stats: {}, totalSeconds: 0, studyDates: [] };
+    }
+  }
+
+  const progress = loadProgress();
+
+  function saveProgress() {
+    try { localStorage.setItem(storeKey, JSON.stringify(progress)); } catch { /* Browser storage can be unavailable. */ }
+  }
+
+  function todayKey(date = new Date()) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  }
 
   const escapeHTML = (value = '') => String(value).replace(/[&<>"']/g, (character) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -176,6 +201,39 @@
     return isCorrect(question) ? 'correct' : 'incorrect';
   }
 
+  function recordAttempt() {
+    const completedAt = Date.now();
+    const duration = Math.max(0, Math.round((completedAt - session.startedAt) / 1000));
+    const attempt = {
+      id: `${completedAt}-${Math.random().toString(36).slice(2, 8)}`,
+      mode: session.mode,
+      completedAt,
+      duration,
+      total: session.questions.length,
+      ...session.result,
+      results: session.questions.map((question) => ({
+        qid: question.id,
+        category: question.category || 'AWS',
+        correct: isCorrect(question),
+        answered: question.selected.length > 0
+      }))
+    };
+
+    progress.attempts.unshift(attempt);
+    progress.attempts = progress.attempts.slice(0, 100);
+    progress.totalSeconds += duration;
+    progress.studyDates = [...new Set([...progress.studyDates, todayKey()])].slice(-365);
+    for (const result of attempt.results) {
+      if (!result.answered) continue;
+      const stat = progress.stats[result.qid] || { attempts: 0, correct: 0, category: result.category };
+      stat.attempts += 1;
+      stat.correct += result.correct ? 1 : 0;
+      stat.lastAttemptedAt = completedAt;
+      progress.stats[result.qid] = stat;
+    }
+    saveProgress();
+  }
+
   function finish(force = false) {
     const unanswered = session.questions.filter((question) => !question.selected.length).length;
     if (!force && unanswered && !window.confirm(`${unanswered} question${unanswered === 1 ? '' : 's'} remain unanswered. Submit anyway?`)) return;
@@ -184,6 +242,7 @@
     const correct = session.questions.filter(isCorrect).length;
     const score = Math.round((correct / session.questions.length) * 100);
     session.result = { answered, correct, score };
+    recordAttempt();
     renderResults();
   }
 
