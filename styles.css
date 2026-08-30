@@ -83,6 +83,9 @@ h1 { margin: 12px 0 14px; font-size: clamp(38px, 6vw, 66px); line-height: 0.98; 
 .review-heading { display: flex; justify-content: space-between; align-items: end; gap: 24px; margin-bottom: 24px; }
 .review-heading h2 { margin: 8px 0; font-size: clamp(30px, 5vw, 48px); letter-spacing: -0.04em; }
 .review-filters { display: flex; gap: 8px; flex-wrap: wrap; }
+.review-totals { display: flex; gap: 10px; flex-wrap: wrap; margin: -8px 0 20px; }
+.review-totals span { padding: 8px 11px; border-radius: 9px; background: var(--surface); border: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+.review-totals strong { color: var(--ink); }
 .review-list { display: grid; gap: 18px; }
 .review-card { background: var(--surface); border: 1px solid var(--line); border-left: 5px solid var(--green); border-radius: 18px; padding: clamp(22px, 4vw, 34px); }
 .review-card.incorrect { border-left-color: var(--red); }

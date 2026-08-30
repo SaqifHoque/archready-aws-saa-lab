@@ -195,25 +195,33 @@
         <div class="eyebrow">Session complete</div><h1>${score}%</h1>
         <p class="subtext">Your ${session.mode === 'mock' ? 'full mock' : 'practice session'} has been scored.</p>
         <div class="summary"><div><strong>${correct}</strong><span>Correct</span></div><div><strong>${answered}</strong><span>Answered</span></div><div><strong>${session.questions.length - answered}</strong><span>Unanswered</span></div></div>
-        <div class="actions"><button class="btn btn-primary" data-review="all">Review answers</button><button class="btn" data-home>Return home</button><button class="btn" data-restart>Try another session</button></div>
+        <div class="actions"><button class="btn btn-primary" data-review="incorrect">Review missed answers</button><button class="btn" data-review="all">Review all</button><button class="btn" data-home>Return home</button><button class="btn" data-restart>Try another session</button></div>
       </section></div>`;
   }
 
   function renderReview(filter = 'all') {
+    const totals = session.questions.reduce((counts, question, index) => {
+      counts[questionStatus(question)] += 1;
+      if (session.flagged.includes(index)) counts.flagged += 1;
+      return counts;
+    }, { correct: 0, incorrect: 0, unanswered: 0, flagged: 0 });
     const questions = session.questions
       .map((question, index) => ({ question, index, status: questionStatus(question) }))
-      .filter((item) => filter === 'all' || item.status === filter);
+      .filter((item) => filter === 'all' || item.status === filter || (filter === 'flagged' && session.flagged.includes(item.index)));
     app.innerHTML = `
       <header class="site-header"><div class="brand">Arch<span>Ready</span></div><button class="btn" data-results>Back to results</button></header>
       <div class="shell review-shell">
         <section class="review-heading">
           <div><div class="eyebrow">Answer review</div><h2>Understand every decision.</h2><p class="subtext">Compare your selections with the supplied answer and explanation.</p></div>
-          <div class="review-filters">
-            <button class="btn ${filter === 'all' ? 'btn-primary' : ''}" data-review="all">All</button>
-            <button class="btn ${filter === 'incorrect' ? 'btn-primary' : ''}" data-review="incorrect">Incorrect</button>
-            <button class="btn ${filter === 'unanswered' ? 'btn-primary' : ''}" data-review="unanswered">Unanswered</button>
+          <div class="review-filters" aria-label="Filter reviewed questions">
+            <button class="btn ${filter === 'all' ? 'btn-primary' : ''}" data-review="all" aria-pressed="${filter === 'all'}">All ${session.questions.length}</button>
+            <button class="btn ${filter === 'correct' ? 'btn-primary' : ''}" data-review="correct" aria-pressed="${filter === 'correct'}">Correct ${totals.correct}</button>
+            <button class="btn ${filter === 'incorrect' ? 'btn-primary' : ''}" data-review="incorrect" aria-pressed="${filter === 'incorrect'}">Incorrect ${totals.incorrect}</button>
+            <button class="btn ${filter === 'unanswered' ? 'btn-primary' : ''}" data-review="unanswered" aria-pressed="${filter === 'unanswered'}">Unanswered ${totals.unanswered}</button>
+            <button class="btn ${filter === 'flagged' ? 'btn-primary' : ''}" data-review="flagged" aria-pressed="${filter === 'flagged'}">Flagged ${totals.flagged}</button>
           </div>
         </section>
+        <section class="review-totals" aria-label="Review totals"><span><strong>${totals.correct}</strong> correct</span><span><strong>${totals.incorrect}</strong> incorrect</span><span><strong>${totals.unanswered}</strong> unanswered</span><span><strong>${totals.flagged}</strong> flagged</span></section>
         <div class="review-list">${questions.length ? questions.map(({ question, index, status }) => {
           const selected = question.selected.map((selectedIndex) => question.options[selectedIndex]?.text).filter(Boolean);
           return `<article class="review-card ${status}">
