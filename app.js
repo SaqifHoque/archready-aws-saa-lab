@@ -86,12 +86,18 @@
         <aside class="panel session-options">
           <div class="mode"><h3>Quick practice</h3><p>10 untimed questions for a focused study block.</p><button class="btn" data-start="practice">Begin 10 questions</button></div>
           <div class="mode"><h3>Full mock</h3><p>65 questions with a 130-minute countdown.</p><button class="btn" data-start="mock">Begin timed exam</button></div>
+          <div class="mode"><h3>Custom session</h3><p>Choose a smaller or larger untimed question set.</p><div class="custom-controls"><div class="field"><label for="custom-count">Questions</label><input id="custom-count" type="number" min="5" max="65" value="20"></div><button class="btn" data-start="custom">Start custom</button></div></div>
         </aside>
       </div>`;
   }
 
   function start(mode) {
-    const count = mode === 'mock' ? Math.min(65, bank.length) : Math.min(10, bank.length);
+    const requested = Number(document.querySelector('#custom-count')?.value) || 20;
+    const count = mode === 'mock'
+      ? Math.min(65, bank.length)
+      : mode === 'custom'
+        ? Math.min(Math.max(requested, 5), 65, bank.length)
+        : Math.min(10, bank.length);
     const questions = shuffle(bank, Date.now()).slice(0, count).map((question) => ({
       ...question,
       options: optionsFor(question),
@@ -101,6 +107,7 @@
       mode,
       questions,
       index: 0,
+      flagged: [],
       remaining: mode === 'mock' ? 130 * 60 : null,
       startedAt: Date.now()
     };
@@ -119,7 +126,7 @@
       </header>
       <div class="exam-layout">
         <article class="question-card">
-          <div class="question-meta"><div><span class="tag">${escapeHTML(question.category || 'AWS')}</span> <span class="tag">Choose ${required}</span></div></div>
+          <div class="question-meta"><div><span class="tag">${escapeHTML(question.category || 'AWS')}</span> <span class="tag">Choose ${required}</span></div><button class="flag ${session.flagged.includes(session.index) ? 'active' : ''}" data-flag>${session.flagged.includes(session.index) ? 'Flagged' : 'Flag for review'}</button></div>
           <div class="question-text">${escapeHTML(question.question)}</div>
           <div class="options">${question.options.map((option, index) => `
             <button class="option ${question.selected.includes(index) ? 'selected' : ''}" data-option="${index}">
@@ -130,6 +137,12 @@
             <button class="btn btn-primary" data-next>${session.index === session.questions.length - 1 ? 'Submit exam' : 'Next question'}</button>
           </div>
         </article>
+        <aside class="navigator">
+          <h3>Question navigator</h3>
+          <p class="subtext">Jump to any question or revisit flagged items.</p>
+          <div class="nav-grid">${session.questions.map((item, index) => `<button class="q-dot ${index === session.index ? 'current' : ''} ${item.selected.length ? 'answered' : ''} ${session.flagged.includes(index) ? 'flagged' : ''}" data-jump="${index}" aria-label="Question ${index + 1}">${index + 1}</button>`).join('')}</div>
+          <button class="btn btn-danger" data-submit>Submit session</button>
+        </aside>
       </div>`;
   }
 
@@ -146,7 +159,9 @@
     renderExam();
   }
 
-  function finish() {
+  function finish(force = false) {
+    const unanswered = session.questions.filter((question) => !question.selected.length).length;
+    if (!force && unanswered && !window.confirm(`${unanswered} question${unanswered === 1 ? '' : 's'} remain unanswered. Submit anyway?`)) return;
     stopTimer();
     const answered = session.questions.filter((question) => question.selected.length).length;
     const correct = session.questions.filter((question) => {
@@ -173,7 +188,7 @@
         timer.textContent = formatTime(session.remaining);
         timer.classList.toggle('warning', session.remaining < 600);
       }
-      if (session.remaining <= 0) finish();
+      if (session.remaining <= 0) finish(true);
     }, 1000);
   }
 
@@ -187,11 +202,19 @@
     if (!target) return;
     if (target.dataset.start) start(target.dataset.start);
     if (target.dataset.option !== undefined) selectOption(Number(target.dataset.option));
+    if (target.dataset.jump !== undefined) { session.index = Number(target.dataset.jump); renderExam(); }
+    if (target.hasAttribute('data-flag')) {
+      session.flagged = session.flagged.includes(session.index)
+        ? session.flagged.filter((index) => index !== session.index)
+        : [...session.flagged, session.index];
+      renderExam();
+    }
     if (target.hasAttribute('data-previous') && session.index > 0) { session.index -= 1; renderExam(); }
     if (target.hasAttribute('data-next')) {
       if (session.index === session.questions.length - 1) finish();
       else { session.index += 1; renderExam(); }
     }
+    if (target.hasAttribute('data-submit')) finish();
     if (target.hasAttribute('data-home')) home();
     if (target.hasAttribute('data-restart')) start(session.mode);
   });
