@@ -180,6 +180,17 @@
     return [...new Map(combined.map((question) => [question.id, question])).values()];
   }
 
+  function summarizePool(questions) {
+    const stats = questions.map((question) => progress.stats[question.id]).filter((stat) => stat?.attempts > 0);
+    const attempts = stats.reduce((total, stat) => total + stat.attempts, 0);
+    const correct = stats.reduce((total, stat) => total + stat.correct, 0);
+    return {
+      completed: stats.length,
+      coverage: questions.length ? Math.round((stats.length / questions.length) * 100) : 0,
+      accuracy: attempts ? Math.round((correct / attempts) * 100) : 0
+    };
+  }
+
   function home() {
     stopTimer();
     session = null;
@@ -226,12 +237,14 @@
       <div class="shell domain-shell">
         <section class="domain-hero panel"><div><div class="eyebrow">Specialized practice</div><h1>Domain Lab</h1><p class="subtext">Study the official SAA-C03 blueprint or focus on a broader AWS knowledge area.</p></div><div class="domain-total"><strong>${bank.length}</strong><span>classified questions</span></div></section>
         <section class="domain-section"><div class="section-heading"><div><div class="eyebrow">Official exam plan</div><h2>SAA-C03 domains</h2></div></div><div class="domain-grid">${examDomains.map((domain, index) => {
-          const count = bank.filter((question) => question.examDomain === domain).length;
-          return `<article class="domain-card"><div class="domain-card-head"><span class="domain-number">${String(index + 1).padStart(2, '0')}</span><span class="tag">${examDomainWeights[domain]}% weight</span></div><h3>${escapeHTML(domain)}</h3><p>${count} questions aligned to this exam objective.</p><button class="btn btn-primary" data-exam-domain="${escapeHTML(domain)}">Practice domain</button></article>`;
+          const questions = bank.filter((question) => question.examDomain === domain);
+          const module = summarizePool(questions);
+          return `<article class="domain-card"><div class="domain-card-head"><span class="domain-number">${String(index + 1).padStart(2, '0')}</span><span class="tag">${examDomainWeights[domain]}% weight</span></div><h3>${escapeHTML(domain)}</h3><p>${module.completed}/${questions.length} completed · ${module.accuracy}% accuracy</p><div class="coverage-bar" aria-label="${module.coverage}% coverage"><i style="width:${module.coverage}%"></i></div><small class="coverage-label">${module.coverage}% question coverage</small><button class="btn btn-primary" data-exam-domain="${escapeHTML(domain)}">Practice domain</button></article>`;
         }).join('')}</div></section>
         <section class="domain-section"><div class="section-heading"><div><div class="eyebrow">Knowledge map</div><h2>Learning topics</h2></div></div><div class="domain-grid topic-grid">${topics.map((topic, index) => {
-          const count = bank.filter((question) => question.topic === topic).length;
-          return `<article class="domain-card"><div class="domain-card-head"><span class="domain-number">${String(index + 1).padStart(2, '0')}</span><span class="tag">${count} questions</span></div><h3>${escapeHTML(topic)}</h3><p>Focused practice for this AWS decision area.</p><button class="btn" data-topic="${escapeHTML(topic)}">Practice topic</button></article>`;
+          const questions = bank.filter((question) => question.topic === topic);
+          const module = summarizePool(questions);
+          return `<article class="domain-card"><div class="domain-card-head"><span class="domain-number">${String(index + 1).padStart(2, '0')}</span><span class="tag">${questions.length} questions</span></div><h3>${escapeHTML(topic)}</h3><p>${module.completed ? `${module.completed}/${questions.length} completed · ${module.accuracy}% accuracy` : 'Fresh topic · ready when you are'}</p><div class="coverage-bar" aria-label="${module.coverage}% coverage"><i style="width:${module.coverage}%"></i></div><small class="coverage-label">${module.coverage}% question coverage</small><button class="btn" data-topic="${escapeHTML(topic)}">Practice topic</button></article>`;
         }).join('')}</div></section>
       </div>`;
   }
