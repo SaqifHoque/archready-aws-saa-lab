@@ -5,6 +5,14 @@
     question.question?.trim().length >= 8 && question.answer
   );
   const storeKey = 'archready-progress-v1';
+  const examDomainWeights = {
+    'Design Secure Architectures': 30,
+    'Design Resilient Architectures': 26,
+    'Design High-Performing Architectures': 24,
+    'Design Cost-Optimized Architectures': 20
+  };
+  const topics = [...new Set(bank.map((question) => question.topic).filter(Boolean))].sort();
+  const examDomains = Object.keys(examDomainWeights).filter((domain) => bank.some((question) => question.examDomain === domain));
   const app = document.querySelector('#app');
   let timerId = null;
   let session = null;
@@ -110,6 +118,8 @@
   function modeTitle(mode) {
     if (mode === 'mock') return 'Full mock exam';
     if (mode === 'review') return 'Weak-area drill';
+    if (mode === 'domain') return 'Exam domain practice';
+    if (mode === 'topic') return 'Topic practice';
     if (mode === 'custom') return 'Custom practice';
     return 'Quick practice';
   }
@@ -170,6 +180,17 @@
     return [...new Map(combined.map((question) => [question.id, question])).values()];
   }
 
+  function summarizePool(questions) {
+    const stats = questions.map((question) => progress.stats[question.id]).filter((stat) => stat?.attempts > 0);
+    const attempts = stats.reduce((total, stat) => total + stat.attempts, 0);
+    const correct = stats.reduce((total, stat) => total + stat.correct, 0);
+    return {
+      completed: stats.length,
+      coverage: questions.length ? Math.round((stats.length / questions.length) * 100) : 0,
+      accuracy: attempts ? Math.round((correct / attempts) * 100) : 0
+    };
+  }
+
   function home() {
     stopTimer();
     session = null;
@@ -182,7 +203,7 @@
           <div class="eyebrow">AWS Solutions Architect Associate</div>
           <h1>Practice the decision, not the guess.</h1>
           <p class="subtext">Build exam stamina with focused practice or a complete 65-question, 130-minute simulation.</p>
-          <div class="actions"><button class="btn btn-primary" data-start="practice">Start quick practice</button><button class="btn" data-start="review">Train weak areas</button><button class="btn" data-start="mock">Take full mock</button></div>
+          <div class="actions"><button class="btn btn-primary" data-start="practice">Start quick practice</button><button class="btn" data-route="domains">Explore domains</button><button class="btn" data-start="review">Train weak areas</button><button class="btn" data-start="mock">Take full mock</button></div>
         </section>
         <aside class="panel session-options">
           <div class="mode"><h3>Quick practice</h3><p>10 untimed questions for a focused study block.</p><button class="btn" data-start="practice">Begin 10 questions</button></div>
@@ -205,17 +226,45 @@
         </section>
         <section class="panel recent-panel">
           <div class="section-heading"><div><div class="eyebrow">Recent activity</div><h2>Your latest sessions</h2></div></div>
-          ${progress.attempts.length ? `<div class="activity-list">${progress.attempts.slice(0, 5).map((attempt) => `<div class="activity-item"><span class="activity-score">${attempt.score}%</span><div><strong>${modeTitle(attempt.mode)}</strong><small>${formatDate(attempt.completedAt)} · ${attempt.total} questions · ${formatDuration(attempt.duration)}</small></div><span class="tag">${attempt.correct}/${attempt.total}</span></div>`).join('')}</div>` : '<div class="empty-progress"><strong>No sessions yet</strong><p class="subtext">Complete a practice set to start building your learning history.</p></div>'}
+          ${progress.attempts.length ? `<div class="activity-list">${progress.attempts.slice(0, 5).map((attempt) => `<div class="activity-item"><span class="activity-score">${attempt.score}%</span><div><strong>${escapeHTML(attempt.title || modeTitle(attempt.mode))}</strong><small>${formatDate(attempt.completedAt)} · ${attempt.total} questions · ${formatDuration(attempt.duration)}</small></div><span class="tag">${attempt.correct}/${attempt.total}</span></div>`).join('')}</div>` : '<div class="empty-progress"><strong>No sessions yet</strong><p class="subtext">Complete a practice set to start building your learning history.</p></div>'}
         </section>
       </div>`;
   }
 
-  function start(mode) {
+  function domainLab() {
+    app.innerHTML = `
+      <header class="site-header"><div class="brand">Arch<span>Ready</span></div><button class="btn" data-home>Back to dashboard</button></header>
+      <div class="shell domain-shell">
+        <section class="domain-hero panel"><div><div class="eyebrow">Specialized practice</div><h1>Domain Lab</h1><p class="subtext">Study the official SAA-C03 blueprint or focus on a broader AWS knowledge area.</p></div><div class="domain-total"><strong>${bank.length}</strong><span>classified questions</span></div></section>
+        <section class="domain-section"><div class="section-heading"><div><div class="eyebrow">Official exam plan</div><h2>SAA-C03 domains</h2></div></div><div class="domain-grid">${examDomains.map((domain, index) => {
+          const questions = bank.filter((question) => question.examDomain === domain);
+          const module = summarizePool(questions);
+          return `<article class="domain-card"><div class="domain-card-head"><span class="domain-number">${String(index + 1).padStart(2, '0')}</span><span class="tag">${examDomainWeights[domain]}% weight</span></div><h3>${escapeHTML(domain)}</h3><p>${module.completed}/${questions.length} completed · ${module.accuracy}% accuracy</p><div class="coverage-bar" aria-label="${module.coverage}% coverage"><i style="width:${module.coverage}%"></i></div><small class="coverage-label">${module.coverage}% question coverage</small><button class="btn btn-primary" data-exam-domain="${escapeHTML(domain)}">Practice domain</button></article>`;
+        }).join('')}</div></section>
+        <section class="domain-section"><div class="section-heading"><div><div class="eyebrow">Knowledge map</div><h2>Learning topics</h2></div></div><div class="domain-grid topic-grid">${topics.map((topic, index) => {
+          const questions = bank.filter((question) => question.topic === topic);
+          const module = summarizePool(questions);
+          return `<article class="domain-card"><div class="domain-card-head"><span class="domain-number">${String(index + 1).padStart(2, '0')}</span><span class="tag">${questions.length} questions</span></div><h3>${escapeHTML(topic)}</h3><p>${module.completed ? `${module.completed}/${questions.length} completed · ${module.accuracy}% accuracy` : 'Fresh topic · ready when you are'}</p><div class="coverage-bar" aria-label="${module.coverage}% coverage"><i style="width:${module.coverage}%"></i></div><small class="coverage-label">${module.coverage}% question coverage</small><button class="btn" data-topic="${escapeHTML(topic)}">Practice topic</button></article>`;
+        }).join('')}</div></section>
+      </div>`;
+  }
+
+  function start(mode, focus = {}) {
     const requested = Number(document.querySelector('#custom-count')?.value) || 20;
-    const source = mode === 'review' ? weakQuestionPool() : bank;
+    const source = mode === 'review'
+      ? weakQuestionPool()
+      : mode === 'domain'
+        ? bank.filter((question) => question.examDomain === focus.examDomain)
+        : mode === 'topic'
+          ? bank.filter((question) => question.topic === focus.topic)
+          : bank;
     const count = mode === 'mock'
       ? Math.min(65, bank.length)
       : mode === 'review'
+        ? Math.min(15, source.length)
+      : mode === 'domain'
+        ? Math.min(20, source.length)
+      : mode === 'topic'
         ? Math.min(15, source.length)
       : mode === 'custom'
         ? Math.min(Math.max(requested, 5), 65, bank.length)
@@ -228,6 +277,8 @@
     }));
     session = {
       mode,
+      focus,
+      title: focus.examDomain || focus.topic || modeTitle(mode),
       questions,
       index: 0,
       flagged: [],
@@ -246,7 +297,7 @@
     app.innerHTML = `
       <header class="exam-header">
         <div class="brand">Arch<span>Ready</span></div>
-        <div class="exam-progress-label">Question ${session.index + 1} of ${session.questions.length}</div>
+        <div class="exam-progress-label">${escapeHTML(session.title)} · Question ${session.index + 1} of ${session.questions.length}</div>
         ${session.remaining === null ? '<span></span>' : `<div class="timer ${session.remaining < 600 ? 'warning' : ''}" data-timer>${formatTime(session.remaining)}</div>`}
       </header>
       <div class="exam-layout">
@@ -304,6 +355,8 @@
     const attempt = {
       id: `${completedAt}-${Math.random().toString(36).slice(2, 8)}`,
       mode: session.mode,
+      title: session.title,
+      focus: session.focus,
       completedAt,
       duration,
       total: session.questions.length,
@@ -363,7 +416,7 @@
       <header class="site-header"><div class="brand">Arch<span>Ready</span></div></header>
       <div class="shell"><section class="panel">
         <div class="eyebrow">Session complete</div><h1>${score}%</h1>
-        <p class="subtext">Your ${session.mode === 'mock' ? 'full mock' : session.mode === 'review' ? 'weak-area drill' : 'practice session'} has been scored.</p>
+        <p class="subtext">Your ${escapeHTML(session.title.toLowerCase())} session has been scored.</p>
         <div class="summary"><div><strong>${correct}</strong><span>Correct</span></div><div><strong>${answered}</strong><span>Answered</span></div><div><strong>${session.questions.length - answered}</strong><span>Unanswered</span></div></div>
         <div class="actions"><button class="btn btn-primary" data-review="incorrect">Review missed answers</button><button class="btn" data-review="all">Review all</button><button class="btn" data-home>Return home</button><button class="btn" data-restart>Try another session</button></div>
       </section></div>`;
@@ -429,6 +482,9 @@
     const target = event.target.closest('button');
     if (!target) return;
     if (target.dataset.start) start(target.dataset.start);
+    if (target.dataset.route === 'domains') domainLab();
+    if (target.dataset.examDomain) start('domain', { examDomain: target.dataset.examDomain });
+    if (target.dataset.topic) start('topic', { topic: target.dataset.topic });
     if (target.dataset.option !== undefined) selectOption(Number(target.dataset.option));
     if (target.hasAttribute('data-check')) {
       session.questions[session.index].submitted = true;
@@ -450,7 +506,7 @@
     if (target.dataset.review) renderReview(target.dataset.review);
     if (target.hasAttribute('data-results')) renderResults();
     if (target.hasAttribute('data-home')) home();
-    if (target.hasAttribute('data-restart')) start(session.mode);
+    if (target.hasAttribute('data-restart')) start(session.mode, session.focus);
   });
 
   home();
