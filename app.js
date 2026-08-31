@@ -13,6 +13,7 @@
   };
   const topics = [...new Set(bank.map((question) => question.topic).filter(Boolean))].sort();
   const examDomains = Object.keys(examDomainWeights).filter((domain) => bank.some((question) => question.examDomain === domain));
+  const services = window.ARCHREADY_SERVICES || [];
   const app = document.querySelector('#app');
   let timerId = null;
   let session = null;
@@ -44,6 +45,19 @@
   const escapeHTML = (value = '') => String(value).replace(/[&<>"']/g, (character) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   })[character]);
+
+  function regexEscape(value) {
+    return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  const servicePools = new Map(services.map((service) => {
+    const patterns = service.aliases.map((alias) => new RegExp(`(^|[^A-Za-z0-9])${regexEscape(alias)}(?=$|[^A-Za-z0-9])`, 'i'));
+    const questions = bank.filter((question) => {
+      const source = `${question.question}\n${question.answer}`;
+      return patterns.some((pattern) => pattern.test(source));
+    });
+    return [service.id, questions];
+  }));
 
   function answerParts(question) {
     const required = Math.max(1, Number(question.selectionsRequired) || 1);
@@ -120,6 +134,7 @@
     if (mode === 'review') return 'Weak-area drill';
     if (mode === 'domain') return 'Exam domain practice';
     if (mode === 'topic') return 'Topic practice';
+    if (mode === 'service') return 'Service practice';
     if (mode === 'custom') return 'Custom practice';
     return 'Quick practice';
   }
@@ -203,7 +218,7 @@
           <div class="eyebrow">AWS Solutions Architect Associate</div>
           <h1>Practice the decision, not the guess.</h1>
           <p class="subtext">Build exam stamina with focused practice or a complete 65-question, 130-minute simulation.</p>
-          <div class="actions"><button class="btn btn-primary" data-start="practice">Start quick practice</button><button class="btn" data-route="domains">Explore domains</button><button class="btn" data-start="review">Train weak areas</button><button class="btn" data-start="mock">Take full mock</button></div>
+          <div class="actions"><button class="btn btn-primary" data-start="practice">Start quick practice</button><button class="btn" data-route="domains">Explore domains</button><button class="btn" data-route="services">Explore services</button><button class="btn" data-start="review">Train weak areas</button><button class="btn" data-start="mock">Take full mock</button></div>
         </section>
         <aside class="panel session-options">
           <div class="mode"><h3>Quick practice</h3><p>10 untimed questions for a focused study block.</p><button class="btn" data-start="practice">Begin 10 questions</button></div>
@@ -249,14 +264,50 @@
       </div>`;
   }
 
+  function serviceLab() {
+    const available = services.filter((service) => (servicePools.get(service.id) || []).length);
+    const linkedQuestions = new Set(available.flatMap((service) => servicePools.get(service.id).map((question) => question.id))).size;
+    const categories = [...new Set(available.map((service) => service.category))].sort();
+    app.innerHTML = `
+      <header class="site-header"><div class="brand">Arch<span>Ready</span></div><button class="btn" data-home>Back to dashboard</button></header>
+      <div class="shell service-shell">
+        <section class="service-hero panel"><div><div class="eyebrow">Service-by-service learning</div><h1>Service Lab</h1><p class="subtext">Learn when to choose an AWS service, then practice questions that explicitly involve it.</p></div><div class="service-summary"><span><strong>${available.length}</strong> services</span><span><strong>${linkedQuestions}</strong> linked questions</span></div></section>
+        <section class="service-controls panel"><div class="field"><label for="service-search">Find a service</label><input id="service-search" type="search" placeholder="Search S3, WAF, Lambda…" autocomplete="off"></div><div class="field"><label for="service-category">Category</label><select id="service-category"><option>All categories</option>${categories.map((category) => `<option>${escapeHTML(category)}</option>`).join('')}</select></div><span class="tag" id="service-result-count">${available.length} services</span></section>
+        <section class="service-grid">${available.map((service) => {
+          const questions = servicePools.get(service.id);
+          const module = summarizePool(questions);
+          const initials = service.name.replace(/^(Amazon|AWS)\s+/, '').split(/\s+/).map((word) => word[0]).join('').slice(0, 3);
+          const searchText = `${service.name} ${service.aliases.join(' ')} ${service.description}`.toLowerCase();
+          return `<article class="service-card" data-service-card data-search="${escapeHTML(searchText)}" data-category="${escapeHTML(service.category)}"><div class="service-card-head"><span class="service-mark">${escapeHTML(initials)}</span><span class="tag">${questions.length} questions</span></div><span class="service-category">${escapeHTML(service.category)}</span><h3>${escapeHTML(service.name)}</h3><p>${escapeHTML(service.description)}</p><div class="coverage-bar" aria-label="${module.coverage}% coverage"><i style="width:${module.coverage}%"></i></div><small class="coverage-label">${module.completed}/${questions.length} completed · ${module.accuracy}% accuracy</small><div class="service-use"><strong>Choose it for</strong>${escapeHTML(service.use)}</div><button class="btn btn-primary" data-service="${escapeHTML(service.id)}">Practice service</button></article>`;
+        }).join('')}</section>
+      </div>`;
+  }
+
+  function filterServices() {
+    const query = (document.querySelector('#service-search')?.value || '').trim().toLowerCase();
+    const category = document.querySelector('#service-category')?.value || 'All categories';
+    const cards = [...document.querySelectorAll('[data-service-card]')];
+    let visible = 0;
+    for (const card of cards) {
+      const matchesQuery = !query || card.dataset.search.includes(query);
+      const matchesCategory = category === 'All categories' || card.dataset.category === category;
+      card.hidden = !(matchesQuery && matchesCategory);
+      if (!card.hidden) visible += 1;
+    }
+    const count = document.querySelector('#service-result-count');
+    if (count) count.textContent = `${visible} service${visible === 1 ? '' : 's'}`;
+  }
+
   function start(mode, focus = {}) {
     const requested = Number(document.querySelector('#custom-count')?.value) || 20;
     const source = mode === 'review'
       ? weakQuestionPool()
       : mode === 'domain'
         ? bank.filter((question) => question.examDomain === focus.examDomain)
-        : mode === 'topic'
+      : mode === 'topic'
           ? bank.filter((question) => question.topic === focus.topic)
+          : mode === 'service'
+            ? servicePools.get(focus.serviceId) || []
           : bank;
     const count = mode === 'mock'
       ? Math.min(65, bank.length)
@@ -265,6 +316,8 @@
       : mode === 'domain'
         ? Math.min(20, source.length)
       : mode === 'topic'
+        ? Math.min(15, source.length)
+      : mode === 'service'
         ? Math.min(15, source.length)
       : mode === 'custom'
         ? Math.min(Math.max(requested, 5), 65, bank.length)
@@ -278,7 +331,7 @@
     session = {
       mode,
       focus,
-      title: focus.examDomain || focus.topic || modeTitle(mode),
+      title: focus.examDomain || focus.topic || focus.serviceName || modeTitle(mode),
       questions,
       index: 0,
       flagged: [],
@@ -483,8 +536,13 @@
     if (!target) return;
     if (target.dataset.start) start(target.dataset.start);
     if (target.dataset.route === 'domains') domainLab();
+    if (target.dataset.route === 'services') serviceLab();
     if (target.dataset.examDomain) start('domain', { examDomain: target.dataset.examDomain });
     if (target.dataset.topic) start('topic', { topic: target.dataset.topic });
+    if (target.dataset.service) {
+      const service = services.find((item) => item.id === target.dataset.service);
+      if (service) start('service', { serviceId: service.id, serviceName: service.name });
+    }
     if (target.dataset.option !== undefined) selectOption(Number(target.dataset.option));
     if (target.hasAttribute('data-check')) {
       session.questions[session.index].submitted = true;
@@ -507,6 +565,14 @@
     if (target.hasAttribute('data-results')) renderResults();
     if (target.hasAttribute('data-home')) home();
     if (target.hasAttribute('data-restart')) start(session.mode, session.focus);
+  });
+
+  app.addEventListener('input', (event) => {
+    if (event.target.matches('#service-search')) filterServices();
+  });
+
+  app.addEventListener('change', (event) => {
+    if (event.target.matches('#service-category')) filterServices();
   });
 
   home();
