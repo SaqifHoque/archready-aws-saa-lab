@@ -118,6 +118,8 @@
   function modeTitle(mode) {
     if (mode === 'mock') return 'Full mock exam';
     if (mode === 'review') return 'Weak-area drill';
+    if (mode === 'domain') return 'Exam domain practice';
+    if (mode === 'topic') return 'Topic practice';
     if (mode === 'custom') return 'Custom practice';
     return 'Quick practice';
   }
@@ -213,7 +215,7 @@
         </section>
         <section class="panel recent-panel">
           <div class="section-heading"><div><div class="eyebrow">Recent activity</div><h2>Your latest sessions</h2></div></div>
-          ${progress.attempts.length ? `<div class="activity-list">${progress.attempts.slice(0, 5).map((attempt) => `<div class="activity-item"><span class="activity-score">${attempt.score}%</span><div><strong>${modeTitle(attempt.mode)}</strong><small>${formatDate(attempt.completedAt)} · ${attempt.total} questions · ${formatDuration(attempt.duration)}</small></div><span class="tag">${attempt.correct}/${attempt.total}</span></div>`).join('')}</div>` : '<div class="empty-progress"><strong>No sessions yet</strong><p class="subtext">Complete a practice set to start building your learning history.</p></div>'}
+          ${progress.attempts.length ? `<div class="activity-list">${progress.attempts.slice(0, 5).map((attempt) => `<div class="activity-item"><span class="activity-score">${attempt.score}%</span><div><strong>${escapeHTML(attempt.title || modeTitle(attempt.mode))}</strong><small>${formatDate(attempt.completedAt)} · ${attempt.total} questions · ${formatDuration(attempt.duration)}</small></div><span class="tag">${attempt.correct}/${attempt.total}</span></div>`).join('')}</div>` : '<div class="empty-progress"><strong>No sessions yet</strong><p class="subtext">Complete a practice set to start building your learning history.</p></div>'}
         </section>
       </div>`;
   }
@@ -234,12 +236,22 @@
       </div>`;
   }
 
-  function start(mode) {
+  function start(mode, focus = {}) {
     const requested = Number(document.querySelector('#custom-count')?.value) || 20;
-    const source = mode === 'review' ? weakQuestionPool() : bank;
+    const source = mode === 'review'
+      ? weakQuestionPool()
+      : mode === 'domain'
+        ? bank.filter((question) => question.examDomain === focus.examDomain)
+        : mode === 'topic'
+          ? bank.filter((question) => question.topic === focus.topic)
+          : bank;
     const count = mode === 'mock'
       ? Math.min(65, bank.length)
       : mode === 'review'
+        ? Math.min(15, source.length)
+      : mode === 'domain'
+        ? Math.min(20, source.length)
+      : mode === 'topic'
         ? Math.min(15, source.length)
       : mode === 'custom'
         ? Math.min(Math.max(requested, 5), 65, bank.length)
@@ -252,6 +264,8 @@
     }));
     session = {
       mode,
+      focus,
+      title: focus.examDomain || focus.topic || modeTitle(mode),
       questions,
       index: 0,
       flagged: [],
@@ -270,7 +284,7 @@
     app.innerHTML = `
       <header class="exam-header">
         <div class="brand">Arch<span>Ready</span></div>
-        <div class="exam-progress-label">Question ${session.index + 1} of ${session.questions.length}</div>
+        <div class="exam-progress-label">${escapeHTML(session.title)} · Question ${session.index + 1} of ${session.questions.length}</div>
         ${session.remaining === null ? '<span></span>' : `<div class="timer ${session.remaining < 600 ? 'warning' : ''}" data-timer>${formatTime(session.remaining)}</div>`}
       </header>
       <div class="exam-layout">
@@ -328,6 +342,8 @@
     const attempt = {
       id: `${completedAt}-${Math.random().toString(36).slice(2, 8)}`,
       mode: session.mode,
+      title: session.title,
+      focus: session.focus,
       completedAt,
       duration,
       total: session.questions.length,
@@ -387,7 +403,7 @@
       <header class="site-header"><div class="brand">Arch<span>Ready</span></div></header>
       <div class="shell"><section class="panel">
         <div class="eyebrow">Session complete</div><h1>${score}%</h1>
-        <p class="subtext">Your ${session.mode === 'mock' ? 'full mock' : session.mode === 'review' ? 'weak-area drill' : 'practice session'} has been scored.</p>
+        <p class="subtext">Your ${escapeHTML(session.title.toLowerCase())} session has been scored.</p>
         <div class="summary"><div><strong>${correct}</strong><span>Correct</span></div><div><strong>${answered}</strong><span>Answered</span></div><div><strong>${session.questions.length - answered}</strong><span>Unanswered</span></div></div>
         <div class="actions"><button class="btn btn-primary" data-review="incorrect">Review missed answers</button><button class="btn" data-review="all">Review all</button><button class="btn" data-home>Return home</button><button class="btn" data-restart>Try another session</button></div>
       </section></div>`;
@@ -454,6 +470,8 @@
     if (!target) return;
     if (target.dataset.start) start(target.dataset.start);
     if (target.dataset.route === 'domains') domainLab();
+    if (target.dataset.examDomain) start('domain', { examDomain: target.dataset.examDomain });
+    if (target.dataset.topic) start('topic', { topic: target.dataset.topic });
     if (target.dataset.option !== undefined) selectOption(Number(target.dataset.option));
     if (target.hasAttribute('data-check')) {
       session.questions[session.index].submitted = true;
@@ -475,7 +493,7 @@
     if (target.dataset.review) renderReview(target.dataset.review);
     if (target.hasAttribute('data-results')) renderResults();
     if (target.hasAttribute('data-home')) home();
-    if (target.hasAttribute('data-restart')) start(session.mode);
+    if (target.hasAttribute('data-restart')) start(session.mode, session.focus);
   });
 
   home();
