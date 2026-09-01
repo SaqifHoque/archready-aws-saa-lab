@@ -14,6 +14,7 @@
   const topics = [...new Set(bank.map((question) => question.topic).filter(Boolean))].sort();
   const examDomains = Object.keys(examDomainWeights).filter((domain) => bank.some((question) => question.examDomain === domain));
   const services = window.ARCHREADY_SERVICES || [];
+  const learning = window.ARCHREADY_LEARNING || { roadmap: [] };
   const app = document.querySelector('#app');
   let timerId = null;
   let session = null;
