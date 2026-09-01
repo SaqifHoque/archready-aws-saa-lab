@@ -155,6 +155,13 @@ h1 { margin: 12px 0 14px; font-size: clamp(38px, 6vw, 66px); line-height: 0.98; 
 .sim-form { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin: 27px 0; }
 .sim-form label { color: var(--muted); font-size: 12px; font-weight: 750; }
 .sim-form input, .sim-form select { width: 100%; height: 43px; display: block; margin-top: 7px; padding: 0 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); }
+.sim-callout { margin: 20px 0; padding: 17px; border-left: 4px solid var(--green); border-radius: 10px; background: var(--green-soft); }
+.sim-callout p { margin: 5px 0 0; color: #456258; line-height: 1.55; }
+.sim-choice-grid { display: grid; gap: 11px; margin: 26px 0; }
+.sim-choice { display: flex; gap: 13px; align-items: flex-start; padding: 15px; border: 1px solid var(--line); border-radius: 12px; }
+.sim-choice input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--green); }
+.sim-choice strong, .sim-choice small { display: block; }
+.sim-choice small { margin-top: 4px; color: var(--muted); line-height: 1.45; }
 .review-shell { width: min(980px, calc(100% - 36px)); }
 .review-heading { display: flex; justify-content: space-between; align-items: end; gap: 24px; margin-bottom: 24px; }
 .review-heading h2 { margin: 8px 0; font-size: clamp(30px, 5vw, 48px); letter-spacing: -0.04em; }
