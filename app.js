@@ -26,10 +26,11 @@
         attempts: Array.isArray(saved.attempts) ? saved.attempts : [],
         stats: saved.stats && typeof saved.stats === 'object' ? saved.stats : {},
         totalSeconds: Number(saved.totalSeconds) || 0,
-        studyDates: Array.isArray(saved.studyDates) ? saved.studyDates : []
+        studyDates: Array.isArray(saved.studyDates) ? saved.studyDates : [],
+        roadmapTasks: saved.roadmapTasks && typeof saved.roadmapTasks === 'object' ? saved.roadmapTasks : {}
       };
     } catch {
-      return { attempts: [], stats: {}, totalSeconds: 0, studyDates: [] };
+      return { attempts: [], stats: {}, totalSeconds: 0, studyDates: [], roadmapTasks: {} };
     }
   }
 
@@ -262,6 +263,27 @@
           const module = summarizePool(questions);
           return `<article class="domain-card"><div class="domain-card-head"><span class="domain-number">${String(index + 1).padStart(2, '0')}</span><span class="tag">${questions.length} questions</span></div><h3>${escapeHTML(topic)}</h3><p>${module.completed ? `${module.completed}/${questions.length} completed · ${module.accuracy}% accuracy` : 'Fresh topic · ready when you are'}</p><div class="coverage-bar" aria-label="${module.coverage}% coverage"><i style="width:${module.coverage}%"></i></div><small class="coverage-label">${module.coverage}% question coverage</small><button class="btn" data-topic="${escapeHTML(topic)}">Practice topic</button></article>`;
         }).join('')}</div></section>
+      </div>`;
+  }
+
+  function roadmapSummary() {
+    const tasks = learning.roadmap.flatMap((phase) => phase.tasks.map(([id]) => id));
+    const complete = tasks.filter((id) => progress.roadmapTasks[id]).length;
+    return { total: tasks.length, complete, percent: tasks.length ? Math.round((complete / tasks.length) * 100) : 0 };
+  }
+
+  function learningRoadmap() {
+    const summary = roadmapSummary();
+    app.innerHTML = `
+      <header class="site-header"><div class="brand">Arch<span>Ready</span></div><button class="btn" data-home>Back to dashboard</button></header>
+      <div class="shell roadmap-shell">
+        <section class="roadmap-hero panel"><div><div class="eyebrow">Twelve-week learning plan</div><h1>Your AWS roadmap</h1><p class="subtext">Move through connected concepts, build practical evidence, and use practice results to reinforce each stage.</p></div><div class="roadmap-score"><strong>${summary.percent}%</strong><span>${summary.complete} of ${summary.total} milestones complete</span></div></section>
+        <section class="roadmap-progress" aria-label="Roadmap completion"><i style="width:${summary.percent}%"></i></section>
+        <section class="roadmap-tree">${learning.roadmap.map((phase, index) => {
+          const completed = phase.tasks.filter(([id]) => progress.roadmapTasks[id]).length;
+          const percent = Math.round((completed / phase.tasks.length) * 100);
+          return `<article class="roadmap-phase"><div class="roadmap-rail"><span>${String(index + 1).padStart(2, '0')}</span></div><div class="roadmap-content"><div class="roadmap-phase-head"><div><span class="eyebrow">${escapeHTML(phase.phase)} · ${escapeHTML(phase.weeks)}</span><h2>${escapeHTML(phase.title)}</h2><p class="subtext">${escapeHTML(phase.outcome)}</p></div><span class="tag">${completed}/${phase.tasks.length}</span></div><div class="roadmap-nodes">${phase.tasks.map(([id, label]) => `<button class="roadmap-node ${progress.roadmapTasks[id] ? 'done' : ''}" data-roadmap-task="${escapeHTML(id)}" aria-pressed="${Boolean(progress.roadmapTasks[id])}"><span>${progress.roadmapTasks[id] ? '✓' : ''}</span>${escapeHTML(label)}</button>`).join('')}</div><div class="roadmap-lab"><strong>Build checkpoint</strong><p>${escapeHTML(phase.lab)}</p><div>${phase.domains.map((domain) => `<span class="tag">${escapeHTML(domain)}</span>`).join('')}</div></div><div class="phase-progress"><i style="width:${percent}%"></i></div></div></article>`;
+        }).join('')}</section>
       </div>`;
   }
 
@@ -538,11 +560,18 @@
     if (target.dataset.start) start(target.dataset.start);
     if (target.dataset.route === 'domains') domainLab();
     if (target.dataset.route === 'services') serviceLab();
+    if (target.dataset.route === 'roadmap') learningRoadmap();
     if (target.dataset.examDomain) start('domain', { examDomain: target.dataset.examDomain });
     if (target.dataset.topic) start('topic', { topic: target.dataset.topic });
     if (target.dataset.service) {
       const service = services.find((item) => item.id === target.dataset.service);
       if (service) start('service', { serviceId: service.id, serviceName: service.name });
+    }
+    if (target.dataset.roadmapTask) {
+      const id = target.dataset.roadmapTask;
+      progress.roadmapTasks[id] = !progress.roadmapTasks[id];
+      saveProgress();
+      learningRoadmap();
     }
     if (target.dataset.option !== undefined) selectOption(Number(target.dataset.option));
     if (target.hasAttribute('data-check')) {
