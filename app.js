@@ -5,6 +5,7 @@
     question.question?.trim().length >= 8 && question.answer
   );
   const storeKey = 'archready-progress-v1';
+  const simulatorKey = 'archready-simulator-v1';
   const examDomainWeights = {
     'Design Secure Architectures': 30,
     'Design Resilient Architectures': 26,
@@ -17,6 +18,35 @@
   const app = document.querySelector('#app');
   let timerId = null;
   let session = null;
+
+  const defaultSimulator = () => ({
+    stage: 'brief',
+    projectName: 'Two-tier customer portal',
+    region: 'ap-northeast-1',
+    environment: 'production',
+    traffic: 'steady',
+    dataSensitivity: 'standard',
+    vpcCidr: '10.0.0.0/16',
+    publicSubnet: '10.0.1.0/24',
+    privateSubnet: '10.0.11.0/24',
+    natGateway: true,
+    waf: true,
+    sessionManager: true,
+    flowLogs: true,
+    ec2Size: 't3.small',
+    minInstances: 2,
+    maxInstances: 4,
+    lambda: true,
+    dynamo: true,
+    monthlyRequests: 2
+  });
+
+  function loadSimulator() {
+    try { return { ...defaultSimulator(), ...JSON.parse(localStorage.getItem(simulatorKey) || '{}') }; } catch { return defaultSimulator(); }
+  }
+
+  let simulator = loadSimulator();
+  function saveSimulator() { try { localStorage.setItem(simulatorKey, JSON.stringify(simulator)); } catch { /* Storage is optional. */ } }
 
   function loadProgress() {
     try {
@@ -218,7 +248,7 @@
           <div class="eyebrow">AWS Solutions Architect Associate</div>
           <h1>Practice the decision, not the guess.</h1>
           <p class="subtext">Build exam stamina with focused practice or a complete 65-question, 130-minute simulation.</p>
-          <div class="actions"><button class="btn btn-primary" data-start="practice">Start quick practice</button><button class="btn" data-route="domains">Explore domains</button><button class="btn" data-route="services">Explore services</button><button class="btn" data-start="review">Train weak areas</button><button class="btn" data-start="mock">Take full mock</button></div>
+          <div class="actions"><button class="btn btn-primary" data-start="practice">Start quick practice</button><button class="btn" data-route="domains">Explore domains</button><button class="btn" data-route="services">Explore services</button><button class="btn" data-route="simulator">Open simulator</button><button class="btn" data-start="review">Train weak areas</button><button class="btn" data-start="mock">Take full mock</button></div>
         </section>
         <aside class="panel session-options">
           <div class="mode"><h3>Quick practice</h3><p>10 untimed questions for a focused study block.</p><button class="btn" data-start="practice">Begin 10 questions</button></div>
@@ -281,6 +311,23 @@
           return `<article class="service-card" data-service-card data-search="${escapeHTML(searchText)}" data-category="${escapeHTML(service.category)}"><div class="service-card-head"><span class="service-mark">${escapeHTML(initials)}</span><span class="tag">${questions.length} questions</span></div><span class="service-category">${escapeHTML(service.category)}</span><h3>${escapeHTML(service.name)}</h3><p>${escapeHTML(service.description)}</p><div class="coverage-bar" aria-label="${module.coverage}% coverage"><i style="width:${module.coverage}%"></i></div><small class="coverage-label">${module.completed}/${questions.length} completed · ${module.accuracy}% accuracy</small><div class="service-use"><strong>Choose it for</strong>${escapeHTML(service.use)}</div><button class="btn btn-primary" data-service="${escapeHTML(service.id)}">Practice service</button></article>`;
         }).join('')}</section>
       </div>`;
+  }
+
+  function simulatorStageLabel(stage) {
+    return ({ brief: 'Project brief', network: 'Network', security: 'Security', compute: 'Compute', review: 'Review' })[stage] || 'Project brief';
+  }
+
+  function simulatorShell(content) {
+    const stages = ['brief', 'network', 'security', 'compute', 'review'];
+    return `<header class="site-header"><div class="brand">Arch<span>Ready</span></div><button class="btn" data-home>Exit simulator</button></header><div class="sim-shell"><aside class="sim-side"><div class="eyebrow">Guided capstone</div><h2>Architecture simulator</h2><p>Design a safe, illustrative AWS workload. Nothing is deployed to AWS.</p><div class="sim-stages">${stages.map((stage, index) => `<button class="sim-stage ${simulator.stage === stage ? 'active' : ''}" data-sim-stage="${stage}"><span>${index + 1}</span>${simulatorStageLabel(stage)}</button>`).join('')}</div></aside><main class="sim-main">${content}</main></div>`;
+  }
+
+  function architectureSimulator() {
+    const stage = simulator.stage;
+    let content = '';
+    if (stage === 'brief') content = `<section class="sim-card"><div class="eyebrow">Step 1 · Define the workload</div><h1>Start with the architecture brief.</h1><p class="subtext">Set the constraints before choosing services. The simulator will use these assumptions in later design checks.</p><div class="sim-form"><label>Project name<input data-sim-field="projectName" value="${escapeHTML(simulator.projectName)}"></label><label>Region<select data-sim-field="region"><option value="ap-northeast-1" ${simulator.region === 'ap-northeast-1' ? 'selected' : ''}>Asia Pacific (Tokyo)</option><option value="us-east-1" ${simulator.region === 'us-east-1' ? 'selected' : ''}>US East (N. Virginia)</option><option value="eu-west-1" ${simulator.region === 'eu-west-1' ? 'selected' : ''}>Europe (Ireland)</option></select></label><label>Environment<select data-sim-field="environment"><option value="development" ${simulator.environment === 'development' ? 'selected' : ''}>Development</option><option value="production" ${simulator.environment === 'production' ? 'selected' : ''}>Production</option></select></label><label>Traffic pattern<select data-sim-field="traffic"><option value="steady" ${simulator.traffic === 'steady' ? 'selected' : ''}>Steady customer traffic</option><option value="spiky" ${simulator.traffic === 'spiky' ? 'selected' : ''}>Spiky campaign traffic</option></select></label><label>Data sensitivity<select data-sim-field="dataSensitivity"><option value="standard" ${simulator.dataSensitivity === 'standard' ? 'selected' : ''}>Standard customer data</option><option value="sensitive" ${simulator.dataSensitivity === 'sensitive' ? 'selected' : ''}>Sensitive regulated data</option></select></label></div><button class="btn btn-primary" data-sim-stage="network">Design network</button></section>`;
+    else content = `<section class="sim-card"><div class="eyebrow">${escapeHTML(simulatorStageLabel(stage))}</div><h1>Continue your design.</h1><p class="subtext">This stage will be configured in the next simulator commit.</p></section>`;
+    app.innerHTML = simulatorShell(content);
   }
 
   function filterServices() {
@@ -537,6 +584,8 @@
     if (target.dataset.start) start(target.dataset.start);
     if (target.dataset.route === 'domains') domainLab();
     if (target.dataset.route === 'services') serviceLab();
+    if (target.dataset.route === 'simulator') architectureSimulator();
+    if (target.dataset.simStage) { simulator.stage = target.dataset.simStage; saveSimulator(); architectureSimulator(); }
     if (target.dataset.examDomain) start('domain', { examDomain: target.dataset.examDomain });
     if (target.dataset.topic) start('topic', { topic: target.dataset.topic });
     if (target.dataset.service) {
@@ -569,10 +618,12 @@
 
   app.addEventListener('input', (event) => {
     if (event.target.matches('#service-search')) filterServices();
+    if (event.target.matches('[data-sim-field]')) { simulator[event.target.dataset.simField] = event.target.value; saveSimulator(); }
   });
 
   app.addEventListener('change', (event) => {
     if (event.target.matches('#service-category')) filterServices();
+    if (event.target.matches('[data-sim-field]')) { simulator[event.target.dataset.simField] = event.target.value; saveSimulator(); }
   });
 
   home();
