@@ -220,7 +220,7 @@
           <div class="eyebrow">AWS Solutions Architect Associate</div>
           <h1>Practice the decision, not the guess.</h1>
           <p class="subtext">Build exam stamina with focused practice or a complete 65-question, 130-minute simulation.</p>
-          <div class="actions"><button class="btn btn-primary" data-start="practice">Start quick practice</button><button class="btn" data-route="domains">Explore domains</button><button class="btn" data-route="services">Explore services</button><button class="btn" data-start="review">Train weak areas</button><button class="btn" data-start="mock">Take full mock</button></div>
+          <div class="actions"><button class="btn btn-primary" data-start="practice">Start quick practice</button><button class="btn" data-route="roadmap">Open roadmap</button><button class="btn" data-route="domains">Explore domains</button><button class="btn" data-route="services">Explore services</button><button class="btn" data-start="review">Train weak areas</button><button class="btn" data-start="mock">Take full mock</button></div>
         </section>
         <aside class="panel session-options">
           <div class="mode"><h3>Quick practice</h3><p>10 untimed questions for a focused study block.</p><button class="btn" data-start="practice">Begin 10 questions</button></div>
