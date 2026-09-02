@@ -1,0 +1,73 @@
+name: archready-aws-exam
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${ARCHREADY_DB_NAME:-archready}
+      POSTGRES_USER: ${ARCHREADY_DB_USER:-archready}
+      POSTGRES_PASSWORD: ${ARCHREADY_DB_PASSWORD:-archready-local-only}
+    volumes:
+      - archready-db:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 4s
+      retries: 10
+      start_period: 5s
+
+  api:
+    build:
+      context: ./backend-local
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql://${ARCHREADY_DB_USER:-archready}:${ARCHREADY_DB_PASSWORD:-archready-local-only}@db:5432/${ARCHREADY_DB_NAME:-archready}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 15s
+      timeout: 4s
+      retries: 5
+      start_period: 10s
+
+  web:
+    container_name: archready-web-42873
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:${ARCHREADY_PORT:-42873}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+      - /var/cache/nginx:size=16m,mode=0755,uid=101,gid=101
+      - /var/run:size=4m,mode=0755,uid=101,gid=101
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  archready-db:
+    name: archready-postgres-data-v1
