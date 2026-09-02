@@ -66,8 +66,9 @@
 
   const progress = loadProgress();
 
-  function saveProgress() {
+  function saveProgress(sync = true) {
     try { localStorage.setItem(storeKey, JSON.stringify(progress)); } catch { /* Browser storage can be unavailable. */ }
+    if (sync) window.CloudProgress?.scheduleSave(progress);
   }
 
   function todayKey(date = new Date()) {
