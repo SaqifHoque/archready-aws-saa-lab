@@ -19,6 +19,7 @@
   const app = document.querySelector('#app');
   let timerId = null;
   let session = null;
+  let cloudState = { state: 'local', message: 'Saved in this browser' };
 
   const defaultSimulator = () => ({
     stage: 'brief',
@@ -66,8 +67,9 @@
 
   const progress = loadProgress();
 
-  function saveProgress() {
+  function saveProgress(sync = true) {
     try { localStorage.setItem(storeKey, JSON.stringify(progress)); } catch { /* Browser storage can be unavailable. */ }
+    if (sync) window.CloudProgress?.scheduleSave(progress);
   }
 
   function todayKey(date = new Date()) {
@@ -161,6 +163,20 @@
     return new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(timestamp));
   }
 
+  function cloudBadge() {
+    const label = cloudState.state === 'synced' ? 'Cloud synced' : cloudState.state === 'syncing' ? 'Syncing…' : cloudState.state === 'error' ? 'Sync issue' : 'Local progress';
+    return `<span id="cloud-status" class="cloud-status ${escapeHTML(cloudState.state)}" title="${escapeHTML(cloudState.message || label)}">${label}</span>`;
+  }
+
+  function refreshCloudBadge() {
+    const badge = document.querySelector('#cloud-status');
+    if (!badge) return;
+    const label = cloudState.state === 'synced' ? 'Cloud synced' : cloudState.state === 'syncing' ? 'Syncing…' : cloudState.state === 'error' ? 'Sync issue' : 'Local progress';
+    badge.className = `cloud-status ${cloudState.state}`;
+    badge.textContent = label;
+    badge.title = cloudState.message || label;
+  }
+
   function modeTitle(mode) {
     if (mode === 'mock') return 'Full mock exam';
     if (mode === 'review') return 'Weak-area drill';
@@ -244,7 +260,7 @@
     const summary = progressSummary();
     const readiness = readinessSummary();
     app.innerHTML = `
-      <header class="site-header"><div class="brand">Arch<span>Ready</span></div><span class="tag">${bank.length} questions</span></header>
+      <header class="site-header"><div class="brand">Arch<span>Ready</span></div><div class="header-status">${cloudBadge()}<span class="tag">${bank.length} questions</span></div></header>
       <div class="shell hero">
         <section class="panel">
           <div class="eyebrow">AWS Solutions Architect Associate</div>
@@ -674,5 +690,28 @@
     if (event.target.matches('[data-sim-field]')) { simulator[event.target.dataset.simField] = event.target.value; saveSimulator(); }
   });
 
+  window.addEventListener('archready-cloud-status', (event) => {
+    cloudState = event.detail || cloudState;
+    refreshCloudBadge();
+  });
+
+  async function initializeCloud() {
+    if (!window.CloudProgress?.configured()) return;
+    try {
+      const authenticated = await window.CloudProgress.init();
+      if (!authenticated) return;
+      const remote = await window.CloudProgress.load();
+      if (remote && typeof remote === 'object') {
+        Object.assign(progress, remote);
+        saveProgress(false);
+      }
+      if (!session) home();
+    } catch (error) {
+      cloudState = { state: 'error', message: error.message || 'Cloud synchronization failed' };
+      refreshCloudBadge();
+    }
+  }
+
   home();
+  initializeCloud();
 })();
