@@ -3,8 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f4f6f3">
   <meta name="description" content="Practice AWS Solutions Architect Associate questions in timed and untimed sessions.">
   <title>ArchReady — AWS Exam Simulator</title>
+  <script>
+    (() => {
+      try {
+        const saved = localStorage.getItem('archready-theme');
+        const theme = saved || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.dataset.theme = theme;
+        document.querySelector('meta[name="theme-color"]').content = theme === 'dark' ? '#111816' : '#f4f6f3';
+      } catch { /* Use the light palette if storage is unavailable. */ }
+    })();
+  </script>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
