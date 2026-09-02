@@ -5,6 +5,7 @@
     question.question?.trim().length >= 8 && question.answer
   );
   const storeKey = 'archready-progress-v1';
+  const themeKey = 'archready-theme';
   const simulatorKey = 'archready-simulator-v1';
   const examDomainWeights = {
     'Design Secure Architectures': 30,
@@ -20,6 +21,32 @@
   let timerId = null;
   let session = null;
   let cloudState = { state: 'local', message: 'Saved in this browser' };
+
+  function currentTheme() { return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'; }
+  function setTheme(theme) {
+    document.documentElement.dataset.theme = theme;
+    try { localStorage.setItem(themeKey, theme); } catch { /* Theme still applies for this visit. */ }
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.content = theme === 'dark' ? '#111816' : '#f4f6f3';
+    const control = document.querySelector('[data-theme-toggle]');
+    if (control) {
+      control.textContent = theme === 'dark' ? 'Light mode' : 'Dark mode';
+      control.setAttribute('aria-pressed', String(theme === 'dark'));
+    }
+  }
+
+  function mountThemeToggle() {
+    const header = app.querySelector('.site-header');
+    if (!header || header.querySelector('[data-theme-toggle]')) return;
+    const control = document.createElement('button');
+    control.className = 'theme-toggle';
+    control.type = 'button';
+    control.dataset.themeToggle = '';
+    control.setAttribute('aria-label', 'Toggle color theme');
+    control.setAttribute('aria-pressed', String(currentTheme() === 'dark'));
+    control.textContent = currentTheme() === 'dark' ? 'Light mode' : 'Dark mode';
+    header.append(control);
+  }
 
   const defaultSimulator = () => ({
     stage: 'brief',
@@ -636,6 +663,7 @@
   app.addEventListener('click', (event) => {
     const target = event.target.closest('button');
     if (!target) return;
+    if (target.hasAttribute('data-theme-toggle')) setTheme(currentTheme() === 'dark' ? 'light' : 'dark');
     if (target.dataset.start) start(target.dataset.start);
     if (target.dataset.route === 'domains') domainLab();
     if (target.dataset.route === 'services') serviceLab();
@@ -695,6 +723,8 @@
     refreshCloudBadge();
   });
 
+  if (window.MutationObserver) new MutationObserver(mountThemeToggle).observe(app, { childList: true, subtree: true });
+
   async function initializeCloud() {
     if (!window.CloudProgress?.configured()) return;
     try {
@@ -713,5 +743,6 @@
   }
 
   home();
+  mountThemeToggle();
   initializeCloud();
 })();

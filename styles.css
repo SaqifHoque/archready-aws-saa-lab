@@ -49,6 +49,8 @@ h1, h2, h3, p { margin-top: 0; }
 .brand { font-size: 19px; font-weight: 850; letter-spacing: -0.03em; }
 .brand span { color: var(--green); }
 .header-status { display: flex; align-items: center; gap: 9px; }
+.theme-toggle { min-height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font-size: 12px; font-weight: 750; }
+.theme-toggle:hover { border-color: var(--green); color: var(--green-dark); }
 .cloud-status { display: inline-block; padding: 6px 9px; border-radius: 7px; background: var(--paper); color: var(--muted); font-size: 11px; font-weight: 800; }
 .cloud-status.synced { background: var(--green-soft); color: var(--green-dark); }
 .cloud-status.syncing { background: var(--orange-soft); color: #9a4a1f; }
