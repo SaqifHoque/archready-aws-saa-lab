@@ -116,6 +116,13 @@
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   }
 
+  function dateKeyOffset(offset) {
+    const date = new Date();
+    date.setHours(12, 0, 0, 0);
+    date.setDate(date.getDate() + offset);
+    return todayKey(date);
+  }
+
   const escapeHTML = (value = '') => String(value).replace(/[&<>"']/g, (character) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   })[character]);
@@ -239,6 +246,40 @@
     };
   }
 
+  function studyStreakSummary() {
+    const dates = [...new Set(progress.studyDates.filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date)))].sort();
+    const studied = new Set(dates);
+    let current = 0;
+    while (studied.has(dateKeyOffset(-current))) current += 1;
+
+    let longest = 0;
+    let run = 0;
+    let previous = null;
+    for (const date of dates) {
+      if (previous && date === nextDateKey(previous)) run += 1;
+      else run = 1;
+      longest = Math.max(longest, run);
+      previous = date;
+    }
+
+    return {
+      current,
+      longest,
+      week: Array.from({ length: 7 }, (_, index) => {
+        const offset = index - 6;
+        const key = dateKeyOffset(offset);
+        const date = new Date(`${key}T12:00:00`);
+        return { key, active: studied.has(key), label: new Intl.DateTimeFormat('en', { weekday: 'short' }).format(date), today: offset === 0 };
+      })
+    };
+  }
+
+  function nextDateKey(key) {
+    const date = new Date(`${key}T12:00:00`);
+    date.setDate(date.getDate() + 1);
+    return todayKey(date);
+  }
+
   function readinessSummary() {
     const summary = progressSummary();
     const mocks = progress.attempts.filter((attempt) => attempt.mode === 'mock' && attempt.answered > 0);
@@ -328,6 +369,7 @@
     session = null;
     const summary = progressSummary();
     const readiness = readinessSummary();
+    const streak = studyStreakSummary();
     const active = resumableSession();
     app.innerHTML = `
       <header class="site-header"><div class="brand">Arch<span>Ready</span></div><div class="header-status">${cloudBadge()}<span class="tag">${bank.length} questions</span></div></header>
@@ -352,6 +394,10 @@
           <div class="metric"><span>Questions explored</span><strong>${summary.explored}</strong><small>of ${bank.length} available</small></div>
           <div class="metric"><span>Completed sessions</span><strong>${summary.sessions}</strong><small>Practice and full mocks</small></div>
           <div class="metric"><span>Focused study</span><strong>${summary.studyTime}</strong><small>Recorded session time</small></div>
+        </section>
+        <section class="panel streak-panel" aria-label="Study consistency">
+          <div><div class="eyebrow">Study consistency</div><h2>${streak.current ? `${streak.current}-day streak` : 'Start a new streak today'}</h2><p class="subtext">Complete any practice session to add a study day. Your personal best is ${streak.longest} day${streak.longest === 1 ? '' : 's'}.</p></div>
+          <div class="streak-week" aria-label="Activity for the last seven days">${streak.week.map((day) => `<div class="streak-day ${day.active ? 'active' : ''} ${day.today ? 'today' : ''}" title="${escapeHTML(day.key)}${day.active ? ': studied' : ': no completed session'}"><span>${escapeHTML(day.label)}</span><i aria-hidden="true"></i></div>`).join('')}</div>
         </section>
         <section class="panel readiness-panel">
           <div class="readiness-ring" style="--readiness:${readiness.score}" aria-label="Learning readiness ${readiness.score} percent"><strong>${readiness.score}%</strong><span>learning score</span></div>
