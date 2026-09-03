@@ -319,7 +319,20 @@
     return {
       completed: stats.length,
       coverage: questions.length ? Math.round((stats.length / questions.length) * 100) : 0,
-      accuracy: attempts ? Math.round((correct / attempts) * 100) : 0
+      accuracy: attempts ? Math.round((correct / attempts) * 100) : 0,
+      attempts,
+      correct
+    };
+  }
+
+  function focusInsights() {
+    const weakest = (entries) => entries
+      .map(([name, questions]) => ({ name, questions, ...summarizePool(questions) }))
+      .filter((entry) => entry.attempts >= 3)
+      .sort((left, right) => left.accuracy - right.accuracy || right.attempts - left.attempts)[0] || null;
+    return {
+      topic: weakest(topics.map((topic) => [topic, bank.filter((question) => question.topic === topic)])),
+      domain: weakest(examDomains.map((domain) => [domain, bank.filter((question) => question.examDomain === domain)]))
     };
   }
 
@@ -328,6 +341,7 @@
     session = null;
     const summary = progressSummary();
     const readiness = readinessSummary();
+    const insights = focusInsights();
     const active = resumableSession();
     app.innerHTML = `
       <header class="site-header"><div class="brand">Arch<span>Ready</span></div><div class="header-status">${cloudBadge()}<span class="tag">${bank.length} questions</span></div></header>
@@ -352,6 +366,10 @@
           <div class="metric"><span>Questions explored</span><strong>${summary.explored}</strong><small>of ${bank.length} available</small></div>
           <div class="metric"><span>Completed sessions</span><strong>${summary.sessions}</strong><small>Practice and full mocks</small></div>
           <div class="metric"><span>Focused study</span><strong>${summary.studyTime}</strong><small>Recorded session time</small></div>
+        </section>
+        <section class="panel insight-panel">
+          <div class="section-heading"><div><div class="eyebrow">Recommended next step</div><h2>${insights.topic || insights.domain ? 'Target the evidence.' : 'Build your first signal.'}</h2><p class="subtext">${insights.topic || insights.domain ? 'These areas have the lowest accuracy among material with at least three answered questions.' : 'Complete a few questions and ArchReady will identify the areas that need focused practice.'}</p></div></div>
+          ${insights.topic || insights.domain ? `<div class="insight-grid">${insights.topic ? `<article class="insight-card"><span class="tag">Learning topic</span><h3>${escapeHTML(insights.topic.name)}</h3><p><strong>${insights.topic.accuracy}%</strong> accuracy across ${insights.topic.attempts} answer${insights.topic.attempts === 1 ? '' : 's'}.</p><button class="btn btn-primary" data-topic="${escapeHTML(insights.topic.name)}">Practice topic</button></article>` : ''}${insights.domain ? `<article class="insight-card"><span class="tag">Exam domain</span><h3>${escapeHTML(insights.domain.name)}</h3><p><strong>${insights.domain.accuracy}%</strong> accuracy across ${insights.domain.attempts} answer${insights.domain.attempts === 1 ? '' : 's'}.</p><button class="btn btn-primary" data-exam-domain="${escapeHTML(insights.domain.name)}">Practice domain</button></article>` : ''}</div>` : '<div class="insight-empty"><span class="tag">No recommendation yet</span><p>Practice sessions stay separate from readiness until you have enough answer history to form a useful recommendation.</p></div>'}
         </section>
         <section class="panel readiness-panel">
           <div class="readiness-ring" style="--readiness:${readiness.score}" aria-label="Learning readiness ${readiness.score} percent"><strong>${readiness.score}%</strong><span>learning score</span></div>
