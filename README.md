@@ -15,6 +15,7 @@ ArchReady is an independent educational project. It is not affiliated with, endo
 - **Large classified bank** — 1,659 source records, including 1,624 usable questions organized into 13 learning topics and four exam domains.
 - **Answer learning** — correct answers and explanations appear after practice submissions and in completed-session review.
 - **Persistent progress** — PostgreSQL stores attempts, answer history, active sessions, statistics, roadmap milestones, readiness inputs, and simulator state.
+- **Study consistency** — a dashboard streak and seven-day activity view turn completed sessions into a visible study habit.
 - **Service and module progress** — PostgreSQL stores explicit coverage and accuracy summaries for every AWS service, learning topic, and official exam domain.
 - **Readiness evidence** — a weighted learning-progress score plus a strict mock-exam readiness gate.
 - **Architecture lab** — design a small AWS workload from requirements through networking, security, compute, serverless integration, deployment simulation, and cost analysis.
@@ -105,6 +106,10 @@ The named Docker volume `archready-postgres-data-v1` stores:
 Starting a practice set or full mock immediately saves an in-progress snapshot. The dashboard shows a **Saved session** card after a browser refresh, tab close, or return visit; select **Resume** to continue at the same question with your selected answers, flags, and feedback state intact. For a timed mock, the countdown uses its original deadline, so time continues to elapse while the page is closed.
 
 Choose **Discard** on the saved-session card to remove an unfinished session without adding it to study history or changing accuracy. A completed or empty submitted session is automatically removed from saved progress.
+
+## Study streaks
+
+Each completed session adds the current local calendar date to progress. The dashboard shows the consecutive days ending today, your longest recorded streak, and activity for the last seven days. Saving progress to the local Docker or optional AWS backend keeps this history with the rest of your learner data.
 
 Back up the default database:
 
