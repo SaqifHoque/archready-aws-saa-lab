@@ -85,10 +85,11 @@
         stats: saved.stats && typeof saved.stats === 'object' ? saved.stats : {},
         totalSeconds: Number(saved.totalSeconds) || 0,
         studyDates: Array.isArray(saved.studyDates) ? saved.studyDates : [],
-        roadmapTasks: saved.roadmapTasks && typeof saved.roadmapTasks === 'object' ? saved.roadmapTasks : {}
+        roadmapTasks: saved.roadmapTasks && typeof saved.roadmapTasks === 'object' ? saved.roadmapTasks : {},
+        activeSession: saved.activeSession && typeof saved.activeSession === 'object' ? saved.activeSession : null
       };
     } catch {
-      return { attempts: [], stats: {}, totalSeconds: 0, studyDates: [], roadmapTasks: {} };
+      return { attempts: [], stats: {}, totalSeconds: 0, studyDates: [], roadmapTasks: {}, activeSession: null };
     }
   }
 
@@ -97,6 +98,18 @@
   function saveProgress(sync = true) {
     try { localStorage.setItem(storeKey, JSON.stringify(progress)); } catch { /* Browser storage can be unavailable. */ }
     if (sync) window.CloudProgress?.scheduleSave(progress);
+  }
+
+  function saveActiveSession() {
+    if (!session) return;
+    progress.activeSession = { ...session, savedAt: Date.now() };
+    saveProgress();
+  }
+
+  function clearActiveSession() {
+    if (!progress.activeSession) return;
+    progress.activeSession = null;
+    saveProgress();
   }
 
   function todayKey(date = new Date()) {
@@ -465,9 +478,11 @@
       index: 0,
       flagged: [],
       remaining: mode === 'mock' ? 130 * 60 : null,
+      deadlineAt: mode === 'mock' ? Date.now() + (130 * 60 * 1000) : null,
       startedAt: Date.now()
     };
     renderExam();
+    saveActiveSession();
     if (session.remaining !== null) startTimer();
   }
 
@@ -519,6 +534,7 @@
       question.selected = [...question.selected, index];
     }
     renderExam();
+    saveActiveSession();
   }
 
   function isCorrect(question) {
@@ -572,6 +588,7 @@
     stopTimer();
     const answered = session.questions.filter((question) => question.selected.length).length;
     if (!answered) {
+      clearActiveSession();
       renderIncomplete();
       return;
     }
@@ -579,6 +596,7 @@
     const score = Math.round((correct / session.questions.length) * 100);
     session.result = { answered, correct, score };
     recordAttempt();
+    clearActiveSession();
     renderResults();
   }
 
@@ -645,13 +663,14 @@
   function startTimer() {
     stopTimer();
     timerId = window.setInterval(() => {
-      session.remaining -= 1;
+      session.remaining = Math.max(0, Math.ceil((session.deadlineAt - Date.now()) / 1000));
       const timer = document.querySelector('[data-timer]');
       if (timer) {
         timer.textContent = formatTime(session.remaining);
         timer.classList.toggle('warning', session.remaining < 600);
       }
       if (session.remaining <= 0) finish(true);
+      else if (session.remaining % 15 === 0) saveActiveSession();
     }, 1000);
   }
 
@@ -687,18 +706,20 @@
     if (target.hasAttribute('data-check')) {
       session.questions[session.index].submitted = true;
       renderExam();
+      saveActiveSession();
     }
-    if (target.dataset.jump !== undefined) { session.index = Number(target.dataset.jump); renderExam(); }
+    if (target.dataset.jump !== undefined) { session.index = Number(target.dataset.jump); renderExam(); saveActiveSession(); }
     if (target.hasAttribute('data-flag')) {
       session.flagged = session.flagged.includes(session.index)
         ? session.flagged.filter((index) => index !== session.index)
         : [...session.flagged, session.index];
       renderExam();
+      saveActiveSession();
     }
-    if (target.hasAttribute('data-previous') && session.index > 0) { session.index -= 1; renderExam(); }
+    if (target.hasAttribute('data-previous') && session.index > 0) { session.index -= 1; renderExam(); saveActiveSession(); }
     if (target.hasAttribute('data-next')) {
       if (session.index === session.questions.length - 1) finish();
-      else { session.index += 1; renderExam(); }
+      else { session.index += 1; renderExam(); saveActiveSession(); }
     }
     if (target.hasAttribute('data-submit')) finish();
     if (target.dataset.review) renderReview(target.dataset.review);
