@@ -1,0 +1,24 @@
+name: Quality checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Validate JavaScript and question bank
+        run: npm run check
+      - name: Validate Python syntax
+        run: python3 -m compileall -q backend backend-local
+      - name: Validate Docker Compose configuration
+        run: docker compose config --quiet
