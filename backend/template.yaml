@@ -1,0 +1,148 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: ArchReady account authentication and cloud progress synchronization
+
+Parameters:
+  FrontendOrigin:
+    Type: String
+    Description: Frontend origin without a trailing slash, for example https://study.example.com
+    Default: http://localhost:4173
+  CallbackUrl:
+    Type: String
+    Description: Exact Cognito callback URL
+    Default: http://localhost:4173/
+  LogoutUrl:
+    Type: String
+    Description: Exact URL after Cognito logout
+    Default: http://localhost:4173/
+  CognitoDomainPrefix:
+    Type: String
+    Description: Globally unique lowercase prefix for the Cognito managed login domain
+
+Globals:
+  Function:
+    Runtime: python3.13
+    Architectures: [arm64]
+    Timeout: 10
+    MemorySize: 256
+    Environment:
+      Variables:
+        TABLE_NAME: !Ref ProgressTable
+
+Resources:
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub ${AWS::StackName}-users
+      UsernameAttributes: [email]
+      AutoVerifiedAttributes: [email]
+      MfaConfiguration: OPTIONAL
+      EnabledMfas: [SOFTWARE_TOKEN_MFA]
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 10
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+          RequireUppercase: true
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: archready-web
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      PreventUserExistenceErrors: ENABLED
+      EnableTokenRevocation: true
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows: [code]
+      AllowedOAuthScopes: [openid, email, profile]
+      SupportedIdentityProviders: [COGNITO]
+      CallbackURLs: [!Ref CallbackUrl]
+      LogoutURLs: [!Ref LogoutUrl]
+      AccessTokenValidity: 1
+      IdTokenValidity: 1
+      RefreshTokenValidity: 30
+      TokenValidityUnits:
+        AccessToken: hours
+        IdToken: hours
+        RefreshToken: days
+
+  UserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Ref CognitoDomainPrefix
+      UserPoolId: !Ref UserPool
+
+  ProgressTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: recordKey
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        - AttributeName: recordKey
+          KeyType: RANGE
+
+  ProgressApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: $default
+      CorsConfiguration:
+        AllowOrigins: [!Ref FrontendOrigin]
+        AllowHeaders: [Authorization, Content-Type]
+        AllowMethods: [GET, PUT, DELETE, OPTIONS]
+      Auth:
+        DefaultAuthorizer: CognitoJwt
+        Authorizers:
+          CognitoJwt:
+            IdentitySource: $request.header.Authorization
+            JwtConfiguration:
+              issuer: !Sub https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}
+              audience: [!Ref UserPoolClient]
+
+  ProgressFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: progress_api.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ProgressTable
+      Events:
+        GetProgress:
+          Type: HttpApi
+          Properties: { ApiId: !Ref ProgressApi, Path: /progress, Method: GET, PayloadFormatVersion: '2.0' }
+        PutProgress:
+          Type: HttpApi
+          Properties: { ApiId: !Ref ProgressApi, Path: /progress, Method: PUT, PayloadFormatVersion: '2.0' }
+        DeleteProgress:
+          Type: HttpApi
+          Properties: { ApiId: !Ref ProgressApi, Path: /progress, Method: DELETE, PayloadFormatVersion: '2.0' }
+
+Outputs:
+  ApiUrl:
+    Value: !Sub https://${ProgressApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}
+  CognitoDomain:
+    Value: !Sub https://${CognitoDomainPrefix}.auth.${AWS::Region}.amazoncognito.com
+  UserPoolId:
+    Value: !Ref UserPool
+  ClientId:
+    Value: !Ref UserPoolClient
+  ProgressTableName:
+    Value: !Ref ProgressTable
