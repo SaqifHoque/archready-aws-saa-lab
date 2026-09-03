@@ -17,6 +17,7 @@ ArchReady is an independent educational project. It is not affiliated with, endo
 - **Persistent progress** — PostgreSQL stores attempts, answer history, active sessions, statistics, roadmap milestones, readiness inputs, and simulator state.
 - **Service and module progress** — PostgreSQL stores explicit coverage and accuracy summaries for every AWS service, learning topic, and official exam domain.
 - **Readiness evidence** — a weighted learning-progress score plus a strict mock-exam readiness gate.
+- **Actionable insights** — the dashboard identifies the lowest-accuracy studied topic and exam domain, then links directly to focused practice.
 - **Architecture lab** — design a small AWS workload from requirements through networking, security, compute, serverless integration, deployment simulation, and cost analysis.
 - **12-week roadmap** — a dependency-based tree from AWS fundamentals to an exam and portfolio sprint.
 - **One-command startup** — Docker Compose starts the frontend, backend API, and database.
@@ -153,6 +154,10 @@ The learning-progress percentage is calculated from:
 | Recent score consistency | 5% |
 
 This percentage measures study growth; it does not grant exam-ready status by itself.
+
+## Progress insights
+
+After at least three answered questions in a learning topic or official exam domain, the dashboard recommends the lowest-accuracy eligible area. Topic and domain recommendations are calculated independently, so you can choose between a narrow knowledge area and the exam blueprint category that needs attention. These recommendations are study prompts, not exam-readiness decisions.
 
 ArchReady deems a learner **exam-ready only when at least 3 of the latest 4 completed full mock exams score 85% or higher**. Three qualifying mocks are sufficient. Practice, custom, weak-area, and topic sessions do not count toward this gate.
 
