@@ -122,6 +122,16 @@ h1 { margin: 12px 0 14px; font-size: clamp(38px, 6vw, 66px); line-height: 0.98; 
 .metric { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 20px; }
 .metric span, .metric small { display: block; color: var(--muted); font-size: 12px; }
 .metric strong { display: block; margin: 8px 0 5px; font-size: 30px; letter-spacing: -0.04em; }
+.streak-panel { display: flex; justify-content: space-between; align-items: center; gap: 28px; margin-bottom: 22px; padding: 28px; }
+.streak-panel h2 { margin: 7px 0; }
+.streak-panel .subtext { margin: 0; }
+.streak-week { display: grid; grid-template-columns: repeat(7, 42px); gap: 8px; flex: 0 0 auto; }
+.streak-day { display: grid; justify-items: center; gap: 8px; color: var(--muted); font-size: 10px; font-weight: 800; }
+.streak-day i { width: 30px; height: 30px; border: 1px solid var(--line); border-radius: 50%; background: var(--paper); }
+.streak-day.active { color: var(--green-dark); }
+.streak-day.active i { border-color: var(--green); background: var(--green); box-shadow: inset 0 0 0 6px var(--green-soft); }
+.streak-day.today i { box-shadow: 0 0 0 2px var(--orange-soft); }
+.streak-day.active.today i { box-shadow: inset 0 0 0 6px var(--green-soft), 0 0 0 2px var(--orange); }
 .recent-panel { padding: 28px; }
 .readiness-panel { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 24px; align-items: center; margin-bottom: 22px; padding: 28px; }
 .readiness-panel h2 { margin: 7px 0; }
@@ -269,6 +279,7 @@ h1 { margin: 12px 0 14px; font-size: clamp(38px, 6vw, 66px); line-height: 0.98; 
   .metric-grid { grid-template-columns: repeat(2, 1fr); }
   .readiness-panel { grid-template-columns: auto 1fr; }
   .readiness-panel > .btn { grid-column: 2; justify-self: start; }
+  .streak-panel { align-items: flex-start; flex-direction: column; }
   .topic-grid { grid-template-columns: repeat(2, 1fr); }
   .service-grid { grid-template-columns: repeat(2, 1fr); }
   .sim-shell { grid-template-columns: 1fr; }
@@ -285,6 +296,7 @@ h1 { margin: 12px 0 14px; font-size: clamp(38px, 6vw, 66px); line-height: 0.98; 
   .activity-item > .tag { grid-column: 2; justify-self: start; }
   .readiness-panel { grid-template-columns: 1fr; }
   .readiness-panel > .btn { grid-column: 1; }
+  .streak-week { grid-template-columns: repeat(7, minmax(30px, 1fr)); width: 100%; gap: 5px; }
   .domain-hero { align-items: flex-start; flex-direction: column; }
   .domain-grid, .topic-grid { grid-template-columns: 1fr; }
   .service-hero { align-items: flex-start; flex-direction: column; }
