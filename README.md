@@ -100,6 +100,12 @@ The named Docker volume `archready-postgres-data-v1` stores:
 - simulator configuration and deployment history;
 - readiness inputs and recent mock results.
 
+## Resume an in-progress session
+
+Starting a practice set or full mock immediately saves an in-progress snapshot. The dashboard shows a **Saved session** card after a browser refresh, tab close, or return visit; select **Resume** to continue at the same question with your selected answers, flags, and feedback state intact. For a timed mock, the countdown uses its original deadline, so time continues to elapse while the page is closed.
+
+Choose **Discard** on the saved-session card to remove an unfinished session without adding it to study history or changing accuracy. A completed or empty submitted session is automatically removed from saved progress.
+
 Back up the default database:
 
 ```bash

@@ -85,10 +85,11 @@
         stats: saved.stats && typeof saved.stats === 'object' ? saved.stats : {},
         totalSeconds: Number(saved.totalSeconds) || 0,
         studyDates: Array.isArray(saved.studyDates) ? saved.studyDates : [],
-        roadmapTasks: saved.roadmapTasks && typeof saved.roadmapTasks === 'object' ? saved.roadmapTasks : {}
+        roadmapTasks: saved.roadmapTasks && typeof saved.roadmapTasks === 'object' ? saved.roadmapTasks : {},
+        activeSession: saved.activeSession && typeof saved.activeSession === 'object' ? saved.activeSession : null
       };
     } catch {
-      return { attempts: [], stats: {}, totalSeconds: 0, studyDates: [], roadmapTasks: {} };
+      return { attempts: [], stats: {}, totalSeconds: 0, studyDates: [], roadmapTasks: {}, activeSession: null };
     }
   }
 
@@ -97,6 +98,18 @@
   function saveProgress(sync = true) {
     try { localStorage.setItem(storeKey, JSON.stringify(progress)); } catch { /* Browser storage can be unavailable. */ }
     if (sync) window.CloudProgress?.scheduleSave(progress);
+  }
+
+  function saveActiveSession() {
+    if (!session) return;
+    progress.activeSession = { ...session, savedAt: Date.now() };
+    saveProgress();
+  }
+
+  function clearActiveSession() {
+    if (!progress.activeSession) return;
+    progress.activeSession = null;
+    saveProgress();
   }
 
   function todayKey(date = new Date()) {
@@ -270,6 +283,35 @@
     return [...new Map(combined.map((question) => [question.id, question])).values()];
   }
 
+  function resumableSession() {
+    const saved = progress.activeSession;
+    const valid = saved && Array.isArray(saved.questions) && saved.questions.length
+      && Number.isInteger(saved.index) && saved.index >= 0 && saved.index < saved.questions.length
+      && saved.questions.every((question) => question && typeof question.question === 'string'
+        && Array.isArray(question.options) && Array.isArray(question.selected));
+    if (!valid) {
+      if (saved) clearActiveSession();
+      return null;
+    }
+    if (saved.mode === 'mock') {
+      const remaining = Math.max(0, Math.ceil((Number(saved.deadlineAt) - Date.now()) / 1000));
+      if (!Number.isFinite(Number(saved.deadlineAt)) || !remaining) {
+        clearActiveSession();
+        return null;
+      }
+      return { ...saved, remaining };
+    }
+    return saved;
+  }
+
+  function resumeSession() {
+    const saved = resumableSession();
+    if (!saved) { home(); return; }
+    session = JSON.parse(JSON.stringify(saved));
+    renderExam();
+    if (session.remaining !== null) startTimer();
+  }
+
   function summarizePool(questions) {
     const stats = questions.map((question) => progress.stats[question.id]).filter((stat) => stat?.attempts > 0);
     const attempts = stats.reduce((total, stat) => total + stat.attempts, 0);
@@ -286,6 +328,7 @@
     session = null;
     const summary = progressSummary();
     const readiness = readinessSummary();
+    const active = resumableSession();
     app.innerHTML = `
       <header class="site-header"><div class="brand">Arch<span>Ready</span></div><div class="header-status">${cloudBadge()}<span class="tag">${bank.length} questions</span></div></header>
       <div class="shell hero">
@@ -296,6 +339,7 @@
           <div class="actions"><button class="btn btn-primary" data-start="practice">Start quick practice</button><button class="btn" data-route="roadmap">Open roadmap</button><button class="btn" data-route="domains">Explore domains</button><button class="btn" data-route="services">Explore services</button><button class="btn" data-route="simulator">Open simulator</button><button class="btn" data-start="review">Train weak areas</button><button class="btn" data-start="mock">Take full mock</button></div>
         </section>
         <aside class="panel session-options">
+          ${active ? `<div class="active-session"><div><span class="tag">Saved session</span><h3>Continue ${escapeHTML(active.title || modeTitle(active.mode))}</h3><p>Question ${active.index + 1} of ${active.questions.length}${active.remaining === null ? '' : ` · ${formatTime(active.remaining)} remaining`}.</p></div><div class="actions"><button class="btn btn-primary" data-resume>Resume</button><button class="btn" data-discard-session>Discard</button></div></div>` : ''}
           <div class="mode"><h3>Quick practice</h3><p>10 untimed questions for a focused study block.</p><button class="btn" data-start="practice">Begin 10 questions</button></div>
           <div class="mode"><h3>Full mock</h3><p>65 questions with a 130-minute countdown.</p><button class="btn" data-start="mock">Begin timed exam</button></div>
           <div class="mode"><h3>Weak-area drill</h3><p>15 adaptive questions based on your lowest-performing material.</p><button class="btn" data-start="review">Train weak areas</button></div>
@@ -465,9 +509,11 @@
       index: 0,
       flagged: [],
       remaining: mode === 'mock' ? 130 * 60 : null,
+      deadlineAt: mode === 'mock' ? Date.now() + (130 * 60 * 1000) : null,
       startedAt: Date.now()
     };
     renderExam();
+    saveActiveSession();
     if (session.remaining !== null) startTimer();
   }
 
@@ -519,6 +565,7 @@
       question.selected = [...question.selected, index];
     }
     renderExam();
+    saveActiveSession();
   }
 
   function isCorrect(question) {
@@ -572,6 +619,7 @@
     stopTimer();
     const answered = session.questions.filter((question) => question.selected.length).length;
     if (!answered) {
+      clearActiveSession();
       renderIncomplete();
       return;
     }
@@ -579,6 +627,7 @@
     const score = Math.round((correct / session.questions.length) * 100);
     session.result = { answered, correct, score };
     recordAttempt();
+    clearActiveSession();
     renderResults();
   }
 
@@ -645,13 +694,14 @@
   function startTimer() {
     stopTimer();
     timerId = window.setInterval(() => {
-      session.remaining -= 1;
+      session.remaining = Math.max(0, Math.ceil((session.deadlineAt - Date.now()) / 1000));
       const timer = document.querySelector('[data-timer]');
       if (timer) {
         timer.textContent = formatTime(session.remaining);
         timer.classList.toggle('warning', session.remaining < 600);
       }
       if (session.remaining <= 0) finish(true);
+      else if (session.remaining % 15 === 0) saveActiveSession();
     }, 1000);
   }
 
@@ -665,6 +715,8 @@
     if (!target) return;
     if (target.hasAttribute('data-theme-toggle')) setTheme(currentTheme() === 'dark' ? 'light' : 'dark');
     if (target.dataset.start) start(target.dataset.start);
+    if (target.hasAttribute('data-resume')) resumeSession();
+    if (target.hasAttribute('data-discard-session')) { clearActiveSession(); home(); }
     if (target.dataset.route === 'domains') domainLab();
     if (target.dataset.route === 'services') serviceLab();
     if (target.dataset.route === 'simulator') architectureSimulator();
@@ -687,18 +739,20 @@
     if (target.hasAttribute('data-check')) {
       session.questions[session.index].submitted = true;
       renderExam();
+      saveActiveSession();
     }
-    if (target.dataset.jump !== undefined) { session.index = Number(target.dataset.jump); renderExam(); }
+    if (target.dataset.jump !== undefined) { session.index = Number(target.dataset.jump); renderExam(); saveActiveSession(); }
     if (target.hasAttribute('data-flag')) {
       session.flagged = session.flagged.includes(session.index)
         ? session.flagged.filter((index) => index !== session.index)
         : [...session.flagged, session.index];
       renderExam();
+      saveActiveSession();
     }
-    if (target.hasAttribute('data-previous') && session.index > 0) { session.index -= 1; renderExam(); }
+    if (target.hasAttribute('data-previous') && session.index > 0) { session.index -= 1; renderExam(); saveActiveSession(); }
     if (target.hasAttribute('data-next')) {
       if (session.index === session.questions.length - 1) finish();
-      else { session.index += 1; renderExam(); }
+      else { session.index += 1; renderExam(); saveActiveSession(); }
     }
     if (target.hasAttribute('data-submit')) finish();
     if (target.dataset.review) renderReview(target.dataset.review);
@@ -717,6 +771,8 @@
     if (event.target.matches('#service-category')) filterServices();
     if (event.target.matches('[data-sim-field]')) { simulator[event.target.dataset.simField] = event.target.value; saveSimulator(); }
   });
+
+  window.addEventListener('pagehide', saveActiveSession);
 
   window.addEventListener('archready-cloud-status', (event) => {
     cloudState = event.detail || cloudState;
