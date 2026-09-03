@@ -1,0 +1,10 @@
+{
+  "name": "archready-aws-saa-lab",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "check:syntax": "node --check app.js && node --check cloud-sync.js && node --check services.js",
+    "check:bank": "node scripts/validate-question-bank.mjs",
+    "check": "npm run check:syntax && npm run check:bank"
+  }
+}
