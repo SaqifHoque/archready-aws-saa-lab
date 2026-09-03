@@ -283,6 +283,35 @@
     return [...new Map(combined.map((question) => [question.id, question])).values()];
   }
 
+  function resumableSession() {
+    const saved = progress.activeSession;
+    const valid = saved && Array.isArray(saved.questions) && saved.questions.length
+      && Number.isInteger(saved.index) && saved.index >= 0 && saved.index < saved.questions.length
+      && saved.questions.every((question) => question && typeof question.question === 'string'
+        && Array.isArray(question.options) && Array.isArray(question.selected));
+    if (!valid) {
+      if (saved) clearActiveSession();
+      return null;
+    }
+    if (saved.mode === 'mock') {
+      const remaining = Math.max(0, Math.ceil((Number(saved.deadlineAt) - Date.now()) / 1000));
+      if (!Number.isFinite(Number(saved.deadlineAt)) || !remaining) {
+        clearActiveSession();
+        return null;
+      }
+      return { ...saved, remaining };
+    }
+    return saved;
+  }
+
+  function resumeSession() {
+    const saved = resumableSession();
+    if (!saved) { home(); return; }
+    session = JSON.parse(JSON.stringify(saved));
+    renderExam();
+    if (session.remaining !== null) startTimer();
+  }
+
   function summarizePool(questions) {
     const stats = questions.map((question) => progress.stats[question.id]).filter((stat) => stat?.attempts > 0);
     const attempts = stats.reduce((total, stat) => total + stat.attempts, 0);
@@ -299,6 +328,7 @@
     session = null;
     const summary = progressSummary();
     const readiness = readinessSummary();
+    const active = resumableSession();
     app.innerHTML = `
       <header class="site-header"><div class="brand">Arch<span>Ready</span></div><div class="header-status">${cloudBadge()}<span class="tag">${bank.length} questions</span></div></header>
       <div class="shell hero">
@@ -309,6 +339,7 @@
           <div class="actions"><button class="btn btn-primary" data-start="practice">Start quick practice</button><button class="btn" data-route="roadmap">Open roadmap</button><button class="btn" data-route="domains">Explore domains</button><button class="btn" data-route="services">Explore services</button><button class="btn" data-route="simulator">Open simulator</button><button class="btn" data-start="review">Train weak areas</button><button class="btn" data-start="mock">Take full mock</button></div>
         </section>
         <aside class="panel session-options">
+          ${active ? `<div class="active-session"><div><span class="tag">Saved session</span><h3>Continue ${escapeHTML(active.title || modeTitle(active.mode))}</h3><p>Question ${active.index + 1} of ${active.questions.length}${active.remaining === null ? '' : ` · ${formatTime(active.remaining)} remaining`}.</p></div><div class="actions"><button class="btn btn-primary" data-resume>Resume</button><button class="btn" data-discard-session>Discard</button></div></div>` : ''}
           <div class="mode"><h3>Quick practice</h3><p>10 untimed questions for a focused study block.</p><button class="btn" data-start="practice">Begin 10 questions</button></div>
           <div class="mode"><h3>Full mock</h3><p>65 questions with a 130-minute countdown.</p><button class="btn" data-start="mock">Begin timed exam</button></div>
           <div class="mode"><h3>Weak-area drill</h3><p>15 adaptive questions based on your lowest-performing material.</p><button class="btn" data-start="review">Train weak areas</button></div>
@@ -684,6 +715,8 @@
     if (!target) return;
     if (target.hasAttribute('data-theme-toggle')) setTheme(currentTheme() === 'dark' ? 'light' : 'dark');
     if (target.dataset.start) start(target.dataset.start);
+    if (target.hasAttribute('data-resume')) resumeSession();
+    if (target.hasAttribute('data-discard-session')) { clearActiveSession(); home(); }
     if (target.dataset.route === 'domains') domainLab();
     if (target.dataset.route === 'services') serviceLab();
     if (target.dataset.route === 'simulator') architectureSimulator();
@@ -738,6 +771,8 @@
     if (event.target.matches('#service-category')) filterServices();
     if (event.target.matches('[data-sim-field]')) { simulator[event.target.dataset.simField] = event.target.value; saveSimulator(); }
   });
+
+  window.addEventListener('pagehide', saveActiveSession);
 
   window.addEventListener('archready-cloud-status', (event) => {
     cloudState = event.detail || cloudState;
