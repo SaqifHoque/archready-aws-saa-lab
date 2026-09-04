@@ -133,6 +133,8 @@ SQL backups and `.env` are ignored by Git.
 | Service Lab | Up to 15 | Untimed | After each answer |
 | Custom session | 5–65 | Optional | Depends on session type |
 
+During a session, use number keys `1`–`5` to select answers, the left and right arrow keys to move between available questions, and `F` to toggle the review flag. The same actions remain available as on-screen controls.
+
 The official SAA-C03 domain view follows the current blueprint:
 
 - Design Secure Architectures — 30%

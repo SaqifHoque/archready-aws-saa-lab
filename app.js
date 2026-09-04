@@ -548,23 +548,24 @@
       </header>
       <div class="exam-layout">
         <article class="question-card">
-          <div class="question-meta"><div><span class="tag">${escapeHTML(question.category || 'AWS')}</span> <span class="tag">Choose ${required}</span></div><button class="flag ${session.flagged.includes(session.index) ? 'active' : ''}" data-flag>${session.flagged.includes(session.index) ? 'Flagged' : 'Flag for review'}</button></div>
+          <div class="question-meta"><div><span class="tag">${escapeHTML(question.category || 'AWS')}</span> <span class="tag">Choose ${required}</span></div><button class="flag ${session.flagged.includes(session.index) ? 'active' : ''}" data-flag aria-keyshortcuts="F">${session.flagged.includes(session.index) ? 'Flagged' : 'Flag for review'}</button></div>
           <div class="question-text">${escapeHTML(question.question)}</div>
           <div class="options">${question.options.map((option, index) => `
-            <button class="option ${question.selected.includes(index) ? 'selected' : ''} ${showFeedback && option.correct ? 'correct' : ''} ${showFeedback && question.selected.includes(index) && !option.correct ? 'incorrect' : ''}" data-option="${index}" ${showFeedback ? 'disabled' : ''}>
+            <button class="option ${question.selected.includes(index) ? 'selected' : ''} ${showFeedback && option.correct ? 'correct' : ''} ${showFeedback && question.selected.includes(index) && !option.correct ? 'incorrect' : ''}" data-option="${index}" aria-keyshortcuts="${index + 1}" ${showFeedback ? 'disabled' : ''}>
               <span class="option-key">${String.fromCharCode(65 + index)}</span><span>${escapeHTML(option.text)}</span>
             </button>`).join('')}</div>
           ${showFeedback ? `<section class="feedback ${correct ? '' : 'wrong'}" role="status"><strong>${correct ? 'Correct' : 'Not quite'}</strong><p>${escapeHTML(question.explanation || `The supplied answer is: ${answerParts(question).join('; ')}`)}</p></section>` : ''}
           <div class="question-actions">
-            <button class="btn" data-previous ${session.index === 0 ? 'disabled' : ''}>Previous</button>
+            <button class="btn" data-previous aria-keyshortcuts="ArrowLeft" ${session.index === 0 ? 'disabled' : ''}>Previous</button>
             ${session.mode !== 'mock' && !question.submitted
               ? `<button class="btn btn-primary" data-check ${question.selected.length !== required ? 'disabled' : ''}>Check answer</button>`
-              : `<button class="btn btn-primary" data-next>${session.index === session.questions.length - 1 ? 'Submit exam' : 'Next question'}</button>`}
+              : `<button class="btn btn-primary" data-next ${session.index === session.questions.length - 1 ? '' : 'aria-keyshortcuts="ArrowRight"'}>${session.index === session.questions.length - 1 ? 'Submit exam' : 'Next question'}</button>`}
           </div>
         </article>
         <aside class="navigator">
           <h3>Question navigator</h3>
           <p class="subtext">Jump to any question or revisit flagged items.</p>
+          <div class="exam-shortcuts" aria-label="Keyboard shortcuts"><span><kbd>1–5</kbd> answer</span><span><kbd>←</kbd><kbd>→</kbd> navigate</span><span><kbd>F</kbd> flag</span></div>
           <div class="nav-grid">${session.questions.map((item, index) => `<button class="q-dot ${index === session.index ? 'current' : ''} ${item.selected.length ? 'answered' : ''} ${session.flagged.includes(index) ? 'flagged' : ''}" data-jump="${index}" aria-label="Question ${index + 1}">${index + 1}</button>`).join('')}</div>
           <button class="btn btn-danger" data-submit>Submit session</button>
         </aside>
@@ -788,6 +789,30 @@
   app.addEventListener('change', (event) => {
     if (event.target.matches('#service-category')) filterServices();
     if (event.target.matches('[data-sim-field]')) { simulator[event.target.dataset.simField] = event.target.value; saveSimulator(); }
+  });
+
+  window.addEventListener('keydown', (event) => {
+    if (!session || !document.querySelector('.exam-layout') || event.altKey || event.ctrlKey || event.metaKey) return;
+    if (event.target.matches('input, select, textarea, [contenteditable="true"]')) return;
+    const key = event.key.toLowerCase();
+    if (/^[1-5]$/.test(key)) {
+      const option = document.querySelector(`[data-option="${Number(key) - 1}"]:not(:disabled)`);
+      if (option) { event.preventDefault(); option.click(); }
+      return;
+    }
+    if (key === 'f') {
+      event.preventDefault();
+      document.querySelector('[data-flag]')?.click();
+      return;
+    }
+    if (event.key === 'ArrowLeft' && session.index > 0) {
+      event.preventDefault();
+      document.querySelector('[data-previous]')?.click();
+    }
+    if (event.key === 'ArrowRight' && session.index < session.questions.length - 1) {
+      event.preventDefault();
+      document.querySelector('[data-next]')?.click();
+    }
   });
 
   window.addEventListener('pagehide', saveActiveSession);
