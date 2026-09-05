@@ -18,6 +18,7 @@ ArchReady is an independent educational project. It is not affiliated with, endo
 - **Service and module progress** — PostgreSQL stores explicit coverage and accuracy summaries for every AWS service, learning topic, and official exam domain.
 - **Readiness evidence** — a weighted learning-progress score plus a strict mock-exam readiness gate.
 - **Actionable insights** — the dashboard identifies the lowest-accuracy studied topic and exam domain, then links directly to focused practice.
+- **Session history** — browse every stored result, filter by study mode, and compare aggregate score, answer, and study-time totals.
 - **Architecture lab** — design a small AWS workload from requirements through networking, security, compute, serverless integration, deployment simulation, and cost analysis.
 - **12-week roadmap** — a dependency-based tree from AWS fundamentals to an exam and portfolio sprint.
 - **One-command startup** — Docker Compose starts the frontend, backend API, and database.
@@ -164,6 +165,10 @@ After at least three answered questions in a learning topic or official exam dom
 ArchReady deems a learner **exam-ready only when at least 3 of the latest 4 completed full mock exams score 85% or higher**. Three qualifying mocks are sufficient. Practice, custom, weak-area, and topic sessions do not count toward this gate.
 
 Timed-out sessions and sessions submitted without any answers are treated as incomplete. They do not enter history or affect accuracy, per-question statistics, study time, mock averages, or readiness.
+
+## Session history
+
+Select **View all history** beside recent activity to browse up to 100 stored completed sessions. Filters separate full mocks, general practice, and focused domain, topic, service, or weak-area work. The summary updates with the filtered session count, average score, submitted answers, and recorded study time.
 
 AWS uses scaled exam scoring, so ArchReady's raw percentages are study guidance rather than a prediction or guarantee of certification results.
 

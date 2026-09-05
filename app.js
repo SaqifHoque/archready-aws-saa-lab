@@ -377,9 +377,38 @@
           <button class="btn btn-primary" data-start="mock">Take a full mock</button>
         </section>
         <section class="panel recent-panel">
-          <div class="section-heading"><div><div class="eyebrow">Recent activity</div><h2>Your latest sessions</h2></div></div>
+          <div class="section-heading"><div><div class="eyebrow">Recent activity</div><h2>Your latest sessions</h2></div>${progress.attempts.length ? '<button class="btn" data-route="history">View all history</button>' : ''}</div>
           ${progress.attempts.length ? `<div class="activity-list">${progress.attempts.slice(0, 5).map((attempt) => `<div class="activity-item"><span class="activity-score">${attempt.score}%</span><div><strong>${escapeHTML(attempt.title || modeTitle(attempt.mode))}</strong><small>${formatDate(attempt.completedAt)} · ${attempt.total} questions · ${formatDuration(attempt.duration)}</small></div><span class="tag">${attempt.correct}/${attempt.total}</span></div>`).join('')}</div>` : '<div class="empty-progress"><strong>No sessions yet</strong><p class="subtext">Complete a practice set to start building your learning history.</p></div>'}
         </section>
+      </div>`;
+  }
+
+  function sessionHistory(filter = 'all') {
+    const groups = {
+      all: () => true,
+      mock: (attempt) => attempt.mode === 'mock',
+      practice: (attempt) => ['practice', 'custom'].includes(attempt.mode),
+      focused: (attempt) => ['review', 'domain', 'topic', 'service'].includes(attempt.mode)
+    };
+    const selectedFilter = groups[filter] ? filter : 'all';
+    const attempts = progress.attempts.filter(groups[selectedFilter]);
+    const average = attempts.length ? Math.round(attempts.reduce((total, attempt) => total + Number(attempt.score || 0), 0) / attempts.length) : 0;
+    const answered = attempts.reduce((total, attempt) => total + Number(attempt.answered || 0), 0);
+    const duration = attempts.reduce((total, attempt) => total + Number(attempt.duration || 0), 0);
+    app.innerHTML = `
+      <header class="site-header"><div class="brand">Arch<span>Ready</span></div><button class="btn" data-home>Back to dashboard</button></header>
+      <div class="shell history-shell">
+        <section class="history-heading">
+          <div><div class="eyebrow">Learning record</div><h1>Session history</h1><p class="subtext">Review every completed study session stored in your progress.</p></div>
+          <div class="history-filters" aria-label="Filter session history">${Object.keys(groups).map((name) => `<button class="btn ${selectedFilter === name ? 'btn-primary' : ''}" data-history-filter="${name}" aria-pressed="${selectedFilter === name}">${name === 'all' ? 'All sessions' : name[0].toUpperCase() + name.slice(1)}</button>`).join('')}</div>
+        </section>
+        <section class="history-metrics" aria-label="Filtered history summary">
+          <div><span>Sessions</span><strong>${attempts.length}</strong></div>
+          <div><span>Average score</span><strong>${average}%</strong></div>
+          <div><span>Answers submitted</span><strong>${answered}</strong></div>
+          <div><span>Study time</span><strong>${formatDuration(duration)}</strong></div>
+        </section>
+        <section class="history-list">${attempts.length ? attempts.map((attempt) => `<article class="history-item"><span class="activity-score">${Number(attempt.score || 0)}%</span><div><strong>${escapeHTML(attempt.title || modeTitle(attempt.mode))}</strong><small>${formatDate(attempt.completedAt)} · ${attempt.total} questions · ${formatDuration(Number(attempt.duration || 0))}</small></div><span class="tag">${attempt.correct}/${attempt.total} correct</span></article>`).join('') : '<div class="panel empty-progress"><strong>No sessions in this category</strong><p class="subtext">Choose another filter or complete a new session.</p></div>'}</section>
       </div>`;
   }
 
@@ -739,6 +768,7 @@
     if (target.dataset.route === 'domains') domainLab();
     if (target.dataset.route === 'services') serviceLab();
     if (target.dataset.route === 'simulator') architectureSimulator();
+    if (target.dataset.route === 'history') sessionHistory();
     if (target.dataset.simStage) { simulator.stage = target.dataset.simStage; saveSimulator(); architectureSimulator(); }
     if (target.hasAttribute('data-sim-reset')) { simulator = defaultSimulator(); saveSimulator(); architectureSimulator(); }
     if (target.dataset.route === 'roadmap') learningRoadmap();
@@ -775,6 +805,7 @@
     }
     if (target.hasAttribute('data-submit')) finish();
     if (target.dataset.review) renderReview(target.dataset.review);
+    if (target.dataset.historyFilter) sessionHistory(target.dataset.historyFilter);
     if (target.hasAttribute('data-results')) renderResults();
     if (target.hasAttribute('data-home')) home();
     if (target.hasAttribute('data-restart')) start(session.mode, session.focus);
