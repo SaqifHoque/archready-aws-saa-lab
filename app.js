@@ -112,6 +112,55 @@
     saveProgress();
   }
 
+  function backupPayload() {
+    return {
+      product: 'ArchReady',
+      schemaVersion: 1,
+      exportedAt: new Date().toISOString(),
+      progress,
+      simulator
+    };
+  }
+
+  function normalizedBackupProgress(value) {
+    if (!value || typeof value !== 'object') throw new Error('This file does not contain ArchReady progress.');
+    const number = (input) => Number.isFinite(Number(input)) ? Math.max(0, Number(input)) : 0;
+    const attempts = Array.isArray(value.attempts) ? value.attempts.slice(0, 100).map((attempt) => ({
+      id: String(attempt.id || ''),
+      mode: String(attempt.mode || 'practice'),
+      title: String(attempt.title || ''),
+      completedAt: number(attempt.completedAt),
+      duration: number(attempt.duration),
+      total: number(attempt.total),
+      answered: number(attempt.answered),
+      correct: number(attempt.correct),
+      score: Math.min(100, number(attempt.score)),
+      results: Array.isArray(attempt.results) ? attempt.results.slice(0, 65).map((result) => ({
+        qid: String(result.qid || ''), category: String(result.category || 'AWS'),
+        correct: Boolean(result.correct), answered: Boolean(result.answered)
+      })) : []
+    })) : [];
+    const stats = Object.fromEntries(Object.entries(value.stats || {}).slice(0, 5000).map(([id, stat]) => [String(id), {
+      attempts: number(stat?.attempts), correct: number(stat?.correct),
+      category: String(stat?.category || 'AWS'), lastAttemptedAt: number(stat?.lastAttemptedAt)
+    }]));
+    return {
+      attempts,
+      stats,
+      totalSeconds: number(value.totalSeconds),
+      studyDates: Array.isArray(value.studyDates) ? [...new Set(value.studyDates.filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date)))].slice(-365) : [],
+      roadmapTasks: Object.fromEntries(Object.entries(value.roadmapTasks || {}).slice(0, 500).map(([id, complete]) => [String(id), Boolean(complete)])),
+      activeSession: null
+    };
+  }
+
+  function parseBackup(text) {
+    let payload;
+    try { payload = JSON.parse(text); } catch { throw new Error('The selected file is not valid JSON.'); }
+    if (payload?.product !== 'ArchReady' || payload?.schemaVersion !== 1) throw new Error('This is not a supported ArchReady backup.');
+    return { progress: normalizedBackupProgress(payload.progress), simulator: payload.simulator };
+  }
+
   function todayKey(date = new Date()) {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   }
