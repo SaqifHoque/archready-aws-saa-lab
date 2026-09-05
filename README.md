@@ -19,6 +19,7 @@ ArchReady is an independent educational project. It is not affiliated with, endo
 - **Readiness evidence** — a weighted learning-progress score plus a strict mock-exam readiness gate.
 - **Actionable insights** — the dashboard identifies the lowest-accuracy studied topic and exam domain, then links directly to focused practice.
 - **Session history** — browse every stored result, filter by study mode, and compare aggregate score, answer, and study-time totals.
+- **Portable backups** — export learner progress and simulator settings as validated JSON, then restore them in another browser.
 - **Architecture lab** — design a small AWS workload from requirements through networking, security, compute, serverless integration, deployment simulation, and cost analysis.
 - **12-week roadmap** — a dependency-based tree from AWS fundamentals to an exam and portfolio sprint.
 - **One-command startup** — Docker Compose starts the frontend, backend API, and database.
@@ -121,6 +122,12 @@ docker compose exec -T db psql -U archready archready < archready-backup.sql
 ```
 
 SQL backups and `.env` are ignored by Git.
+
+### Browser progress backup
+
+Select **Backup progress** on the dashboard to download a portable JSON snapshot. The file includes completed sessions, question statistics, study dates, roadmap tasks, and architecture simulator settings. Restore validates the file format and asks for confirmation before replacing current progress.
+
+Active exam sessions are intentionally excluded during restore because their original timer deadline may be stale. JSON backups contain learner progress only; they do not contain database credentials or Cognito tokens.
 
 ## Exam and practice modes
 
