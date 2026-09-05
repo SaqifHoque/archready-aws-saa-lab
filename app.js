@@ -140,10 +140,13 @@
         correct: Boolean(result.correct), answered: Boolean(result.answered)
       })) : []
     })) : [];
-    const stats = Object.fromEntries(Object.entries(value.stats || {}).slice(0, 5000).map(([id, stat]) => [String(id), {
-      attempts: number(stat?.attempts), correct: number(stat?.correct),
-      category: String(stat?.category || 'AWS'), lastAttemptedAt: number(stat?.lastAttemptedAt)
-    }]));
+    const stats = Object.fromEntries(Object.entries(value.stats || {}).slice(0, 5000).map(([id, stat]) => {
+      const attempts = number(stat?.attempts);
+      return [String(id), {
+        attempts, correct: Math.min(attempts, number(stat?.correct)),
+        category: String(stat?.category || 'AWS'), lastAttemptedAt: number(stat?.lastAttemptedAt)
+      }];
+    }));
     return {
       attempts,
       stats,
@@ -399,7 +402,7 @@
           <div class="eyebrow">AWS Solutions Architect Associate</div>
           <h1>Practice the decision, not the guess.</h1>
           <p class="subtext">Build exam stamina with focused practice or a complete 65-question, 130-minute simulation.</p>
-          <div class="actions"><button class="btn btn-primary" data-start="practice">Start quick practice</button><button class="btn" data-route="roadmap">Open roadmap</button><button class="btn" data-route="domains">Explore domains</button><button class="btn" data-route="services">Explore services</button><button class="btn" data-route="simulator">Open simulator</button><button class="btn" data-start="review">Train weak areas</button><button class="btn" data-start="mock">Take full mock</button></div>
+          <div class="actions"><button class="btn btn-primary" data-start="practice">Start quick practice</button><button class="btn" data-route="roadmap">Open roadmap</button><button class="btn" data-route="domains">Explore domains</button><button class="btn" data-route="services">Explore services</button><button class="btn" data-route="simulator">Open simulator</button><button class="btn" data-route="backup">Backup progress</button><button class="btn" data-start="review">Train weak areas</button><button class="btn" data-start="mock">Take full mock</button></div>
         </section>
         <aside class="panel session-options">
           ${active ? `<div class="active-session"><div><span class="tag">Saved session</span><h3>Continue ${escapeHTML(active.title || modeTitle(active.mode))}</h3><p>Question ${active.index + 1} of ${active.questions.length}${active.remaining === null ? '' : ` · ${formatTime(active.remaining)} remaining`}.</p></div><div class="actions"><button class="btn btn-primary" data-resume>Resume</button><button class="btn" data-discard-session>Discard</button></div></div>` : ''}
@@ -459,6 +462,55 @@
         </section>
         <section class="history-list">${attempts.length ? attempts.map((attempt) => `<article class="history-item"><span class="activity-score">${Number(attempt.score || 0)}%</span><div><strong>${escapeHTML(attempt.title || modeTitle(attempt.mode))}</strong><small>${formatDate(attempt.completedAt)} · ${attempt.total} questions · ${formatDuration(Number(attempt.duration || 0))}</small></div><span class="tag">${attempt.correct}/${attempt.total} correct</span></article>`).join('') : '<div class="panel empty-progress"><strong>No sessions in this category</strong><p class="subtext">Choose another filter or complete a new session.</p></div>'}</section>
       </div>`;
+  }
+
+  function backupCenter(message = '', error = false) {
+    app.innerHTML = `
+      <header class="site-header"><div class="brand">Arch<span>Ready</span></div><button class="btn" data-home>Back to dashboard</button></header>
+      <div class="shell backup-shell">
+        <section class="backup-heading"><div class="eyebrow">Portable learner data</div><h1>Backup progress</h1><p class="subtext">Download completed sessions, statistics, roadmap progress, and simulator settings as a JSON file.</p></section>
+        ${message ? `<div class="backup-message ${error ? 'error' : ''}" role="status">${escapeHTML(message)}</div>` : ''}
+        <section class="backup-grid">
+          <article class="panel backup-card"><span class="tag">Export</span><h2>Save a copy</h2><p>Keep a portable snapshot before clearing browser data or moving to another browser.</p><button class="btn btn-primary" data-backup-export>Download backup</button></article>
+          <article class="panel backup-card"><span class="tag">Restore</span><h2>Import a copy</h2><p>Restoring replaces the current completed progress and simulator settings. In-progress sessions are not imported.</p><label class="btn backup-file">Choose backup<input type="file" accept="application/json,.json" data-backup-import></label></article>
+        </section>
+      </div>`;
+  }
+
+  function downloadProgressBackup() {
+    const blob = new Blob([JSON.stringify(backupPayload(), null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `archready-backup-${todayKey()}.json`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    backupCenter('Backup downloaded successfully.');
+  }
+
+  async function restoreProgressBackup(file) {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { backupCenter('The selected backup is larger than 5 MB.', true); return; }
+    try {
+      const restored = parseBackup(await file.text());
+      if (!window.confirm('Replace the current ArchReady progress with this backup?')) return;
+      Object.keys(progress).forEach((key) => delete progress[key]);
+      Object.assign(progress, restored.progress);
+      const restoredSimulator = defaultSimulator();
+      if (restored.simulator && typeof restored.simulator === 'object') {
+        for (const key of Object.keys(restoredSimulator)) {
+          if (['string', 'number', 'boolean'].includes(typeof restored.simulator[key])) restoredSimulator[key] = restored.simulator[key];
+        }
+      }
+      simulator = restoredSimulator;
+      saveProgress();
+      saveSimulator();
+      backupCenter('Progress restored successfully.');
+    } catch (error) {
+      backupCenter(error.message || 'The backup could not be restored.', true);
+    }
   }
 
   function domainLab() {
@@ -818,6 +870,7 @@
     if (target.dataset.route === 'services') serviceLab();
     if (target.dataset.route === 'simulator') architectureSimulator();
     if (target.dataset.route === 'history') sessionHistory();
+    if (target.dataset.route === 'backup') backupCenter();
     if (target.dataset.simStage) { simulator.stage = target.dataset.simStage; saveSimulator(); architectureSimulator(); }
     if (target.hasAttribute('data-sim-reset')) { simulator = defaultSimulator(); saveSimulator(); architectureSimulator(); }
     if (target.dataset.route === 'roadmap') learningRoadmap();
@@ -853,6 +906,7 @@
       else { session.index += 1; renderExam(); saveActiveSession(); }
     }
     if (target.hasAttribute('data-submit')) finish();
+    if (target.hasAttribute('data-backup-export')) downloadProgressBackup();
     if (target.dataset.review) renderReview(target.dataset.review);
     if (target.dataset.historyFilter) sessionHistory(target.dataset.historyFilter);
     if (target.hasAttribute('data-results')) renderResults();
@@ -869,6 +923,7 @@
   app.addEventListener('change', (event) => {
     if (event.target.matches('#service-category')) filterServices();
     if (event.target.matches('[data-sim-field]')) { simulator[event.target.dataset.simField] = event.target.value; saveSimulator(); }
+    if (event.target.matches('[data-backup-import]')) restoreProgressBackup(event.target.files?.[0]);
   });
 
   window.addEventListener('keydown', (event) => {
