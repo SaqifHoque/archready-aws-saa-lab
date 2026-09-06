@@ -86,10 +86,11 @@
         totalSeconds: Number(saved.totalSeconds) || 0,
         studyDates: Array.isArray(saved.studyDates) ? saved.studyDates : [],
         roadmapTasks: saved.roadmapTasks && typeof saved.roadmapTasks === 'object' ? saved.roadmapTasks : {},
+        bookmarks: Array.isArray(saved.bookmarks) ? [...new Set(saved.bookmarks.map(String))] : [],
         activeSession: saved.activeSession && typeof saved.activeSession === 'object' ? saved.activeSession : null
       };
     } catch {
-      return { attempts: [], stats: {}, totalSeconds: 0, studyDates: [], roadmapTasks: {}, activeSession: null };
+      return { attempts: [], stats: {}, totalSeconds: 0, studyDates: [], roadmapTasks: {}, bookmarks: [], activeSession: null };
     }
   }
 
@@ -153,6 +154,7 @@
       totalSeconds: number(value.totalSeconds),
       studyDates: Array.isArray(value.studyDates) ? [...new Set(value.studyDates.filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date)))].slice(-365) : [],
       roadmapTasks: Object.fromEntries(Object.entries(value.roadmapTasks || {}).slice(0, 500).map(([id, complete]) => [String(id), Boolean(complete)])),
+      bookmarks: Array.isArray(value.bookmarks) ? [...new Set(value.bookmarks.map(String))].slice(0, 2000) : [],
       activeSession: null
     };
   }
@@ -275,6 +277,7 @@
     if (mode === 'domain') return 'Exam domain practice';
     if (mode === 'topic') return 'Topic practice';
     if (mode === 'service') return 'Service practice';
+    if (mode === 'bookmarks') return 'Saved-question practice';
     if (mode === 'custom') return 'Custom practice';
     return 'Quick practice';
   }
@@ -626,6 +629,8 @@
       ? weakQuestionPool()
       : mode === 'domain'
         ? bank.filter((question) => question.examDomain === focus.examDomain)
+      : mode === 'bookmarks'
+        ? bank.filter((question) => progress.bookmarks.includes(String(question.id)))
       : mode === 'topic'
           ? bank.filter((question) => question.topic === focus.topic)
           : mode === 'service'
@@ -637,6 +642,8 @@
         ? Math.min(15, source.length)
       : mode === 'domain'
         ? Math.min(20, source.length)
+      : mode === 'bookmarks'
+        ? Math.min(20, source.length)
       : mode === 'topic'
         ? Math.min(15, source.length)
       : mode === 'service'
@@ -644,6 +651,7 @@
       : mode === 'custom'
         ? Math.min(Math.max(requested, 5), 65, bank.length)
         : Math.min(10, bank.length);
+    if (!source.length) { home(); return; }
     const questions = shuffle(source, Date.now()).slice(0, count).map((question) => ({
       ...question,
       options: optionsFor(question),
