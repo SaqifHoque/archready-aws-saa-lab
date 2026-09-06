@@ -345,7 +345,7 @@
       if (saved) clearActiveSession();
       return null;
     }
-    if (saved.mode === 'mock') {
+    if (saved.deadlineAt !== null && saved.deadlineAt !== undefined) {
       const remaining = Math.max(0, Math.ceil((Number(saved.deadlineAt) - Date.now()) / 1000));
       if (!Number.isFinite(Number(saved.deadlineAt)) || !remaining) {
         clearActiveSession();
@@ -409,7 +409,7 @@
           <div class="mode"><h3>Quick practice</h3><p>10 untimed questions for a focused study block.</p><button class="btn" data-start="practice">Begin 10 questions</button></div>
           <div class="mode"><h3>Full mock</h3><p>65 questions with a 130-minute countdown.</p><button class="btn" data-start="mock">Begin timed exam</button></div>
           <div class="mode"><h3>Weak-area drill</h3><p>15 adaptive questions based on your lowest-performing material.</p><button class="btn" data-start="review">Train weak areas</button></div>
-          <div class="mode"><h3>Custom session</h3><p>Choose a smaller or larger untimed question set.</p><div class="custom-controls"><div class="field"><label for="custom-count">Questions</label><input id="custom-count" type="number" min="5" max="65" value="20"></div><button class="btn" data-start="custom">Start custom</button></div></div>
+          <div class="mode"><h3>Custom session</h3><p>Choose the question count and an optional countdown.</p><div class="custom-controls"><div class="field"><label for="custom-count">Questions</label><input id="custom-count" type="number" min="5" max="65" value="20"></div><div class="field"><label for="custom-duration">Timer</label><select id="custom-duration"><option value="0">Untimed</option><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="60">60 minutes</option><option value="90">90 minutes</option><option value="130">130 minutes</option></select></div><button class="btn" data-start="custom">Start custom</button></div></div>
         </aside>
       </div>
       <div class="shell progress-section">
@@ -621,6 +621,7 @@
 
   function start(mode, focus = {}) {
     const requested = Number(document.querySelector('#custom-count')?.value) || 20;
+    const customMinutes = Math.min(130, Math.max(0, Number(document.querySelector('#custom-duration')?.value) || 0));
     const source = mode === 'review'
       ? weakQuestionPool()
       : mode === 'domain'
@@ -649,6 +650,7 @@
       selected: [],
       submitted: false
     }));
+    const timedSeconds = mode === 'mock' ? 130 * 60 : mode === 'custom' && customMinutes ? customMinutes * 60 : null;
     session = {
       mode,
       focus,
@@ -656,8 +658,8 @@
       questions,
       index: 0,
       flagged: [],
-      remaining: mode === 'mock' ? 130 * 60 : null,
-      deadlineAt: mode === 'mock' ? Date.now() + (130 * 60 * 1000) : null,
+      remaining: timedSeconds,
+      deadlineAt: timedSeconds === null ? null : Date.now() + (timedSeconds * 1000),
       startedAt: Date.now()
     };
     renderExam();
