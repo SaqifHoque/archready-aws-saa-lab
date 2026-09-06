@@ -86,10 +86,11 @@
         totalSeconds: Number(saved.totalSeconds) || 0,
         studyDates: Array.isArray(saved.studyDates) ? saved.studyDates : [],
         roadmapTasks: saved.roadmapTasks && typeof saved.roadmapTasks === 'object' ? saved.roadmapTasks : {},
+        notes: saved.notes && typeof saved.notes === 'object' ? saved.notes : {},
         activeSession: saved.activeSession && typeof saved.activeSession === 'object' ? saved.activeSession : null
       };
     } catch {
-      return { attempts: [], stats: {}, totalSeconds: 0, studyDates: [], roadmapTasks: {}, activeSession: null };
+      return { attempts: [], stats: {}, totalSeconds: 0, studyDates: [], roadmapTasks: {}, notes: {}, activeSession: null };
     }
   }
 
@@ -153,6 +154,7 @@
       totalSeconds: number(value.totalSeconds),
       studyDates: Array.isArray(value.studyDates) ? [...new Set(value.studyDates.filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date)))].slice(-365) : [],
       roadmapTasks: Object.fromEntries(Object.entries(value.roadmapTasks || {}).slice(0, 500).map(([id, complete]) => [String(id), Boolean(complete)])),
+      notes: Object.fromEntries(Object.entries(value.notes || {}).slice(0, 2000).map(([id, note]) => [String(id), String(note).slice(0, 1000)]).filter(([, note]) => note.trim())),
       activeSession: null
     };
   }
