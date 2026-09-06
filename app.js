@@ -405,7 +405,7 @@
           <div class="eyebrow">AWS Solutions Architect Associate</div>
           <h1>Practice the decision, not the guess.</h1>
           <p class="subtext">Build exam stamina with focused practice or a complete 65-question, 130-minute simulation.</p>
-          <div class="actions"><button class="btn btn-primary" data-start="practice">Start quick practice</button><button class="btn" data-route="roadmap">Open roadmap</button><button class="btn" data-route="domains">Explore domains</button><button class="btn" data-route="services">Explore services</button><button class="btn" data-route="simulator">Open simulator</button><button class="btn" data-route="backup">Backup progress</button><button class="btn" data-start="review">Train weak areas</button><button class="btn" data-start="mock">Take full mock</button></div>
+          <div class="actions"><button class="btn btn-primary" data-start="practice">Start quick practice</button><button class="btn" data-start="bookmarks" ${progress.bookmarks.length ? '' : 'disabled'}>Practice saved (${progress.bookmarks.length})</button><button class="btn" data-route="roadmap">Open roadmap</button><button class="btn" data-route="domains">Explore domains</button><button class="btn" data-route="services">Explore services</button><button class="btn" data-route="simulator">Open simulator</button><button class="btn" data-route="backup">Backup progress</button><button class="btn" data-start="review">Train weak areas</button><button class="btn" data-start="mock">Take full mock</button></div>
         </section>
         <aside class="panel session-options">
           ${active ? `<div class="active-session"><div><span class="tag">Saved session</span><h3>Continue ${escapeHTML(active.title || modeTitle(active.mode))}</h3><p>Question ${active.index + 1} of ${active.questions.length}${active.remaining === null ? '' : ` · ${formatTime(active.remaining)} remaining`}.</p></div><div class="actions"><button class="btn btn-primary" data-resume>Resume</button><button class="btn" data-discard-session>Discard</button></div></div>` : ''}
@@ -443,7 +443,7 @@
       all: () => true,
       mock: (attempt) => attempt.mode === 'mock',
       practice: (attempt) => ['practice', 'custom'].includes(attempt.mode),
-      focused: (attempt) => ['review', 'domain', 'topic', 'service'].includes(attempt.mode)
+      focused: (attempt) => ['review', 'domain', 'topic', 'service', 'bookmarks'].includes(attempt.mode)
     };
     const selectedFilter = groups[filter] ? filter : 'all';
     const attempts = progress.attempts.filter(groups[selectedFilter]);
@@ -680,6 +680,7 @@
     const required = Math.max(1, Number(question.selectionsRequired) || 1);
     const showFeedback = session.mode !== 'mock' && question.submitted;
     const correct = isCorrect(question);
+    const bookmarked = progress.bookmarks.includes(String(question.id));
     app.innerHTML = `
       <header class="exam-header">
         <div class="brand">Arch<span>Ready</span></div>
@@ -688,7 +689,7 @@
       </header>
       <div class="exam-layout">
         <article class="question-card">
-          <div class="question-meta"><div><span class="tag">${escapeHTML(question.category || 'AWS')}</span> <span class="tag">Choose ${required}</span></div><button class="flag ${session.flagged.includes(session.index) ? 'active' : ''}" data-flag aria-keyshortcuts="F">${session.flagged.includes(session.index) ? 'Flagged' : 'Flag for review'}</button></div>
+          <div class="question-meta"><div><span class="tag">${escapeHTML(question.category || 'AWS')}</span> <span class="tag">Choose ${required}</span></div><div class="question-tools"><button class="bookmark ${bookmarked ? 'active' : ''}" data-bookmark aria-pressed="${bookmarked}">${bookmarked ? 'Saved' : 'Save question'}</button><button class="flag ${session.flagged.includes(session.index) ? 'active' : ''}" data-flag aria-keyshortcuts="F">${session.flagged.includes(session.index) ? 'Flagged' : 'Flag for review'}</button></div></div>
           <div class="question-text">${escapeHTML(question.question)}</div>
           <div class="options">${question.options.map((option, index) => `
             <button class="option ${question.selected.includes(index) ? 'selected' : ''} ${showFeedback && option.correct ? 'correct' : ''} ${showFeedback && question.selected.includes(index) && !option.correct ? 'incorrect' : ''}" data-option="${index}" aria-keyshortcuts="${index + 1}" ${showFeedback ? 'disabled' : ''}>
@@ -725,6 +726,15 @@
     }
     renderExam();
     saveActiveSession();
+  }
+
+  function toggleBookmark() {
+    const id = String(session.questions[session.index].id);
+    progress.bookmarks = progress.bookmarks.includes(id)
+      ? progress.bookmarks.filter((bookmark) => bookmark !== id)
+      : [...progress.bookmarks, id];
+    saveProgress();
+    renderExam();
   }
 
   function isCorrect(question) {
@@ -897,6 +907,7 @@
       learningRoadmap();
     }
     if (target.dataset.option !== undefined) selectOption(Number(target.dataset.option));
+    if (target.hasAttribute('data-bookmark')) toggleBookmark();
     if (target.hasAttribute('data-check')) {
       session.questions[session.index].submitted = true;
       renderExam();
