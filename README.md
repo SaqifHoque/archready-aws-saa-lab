@@ -143,6 +143,8 @@ Active exam sessions are intentionally excluded during restore because their ori
 
 During a session, use number keys `1`–`5` to select answers, the left and right arrow keys to move between available questions, and `F` to toggle the review flag. The same actions remain available as on-screen controls.
 
+Custom sessions support 5–65 questions and can remain untimed or use a 15, 30, 60, 90, or 130-minute countdown. Timed custom practice keeps immediate answer feedback, automatically submits when time expires, and preserves the original deadline when an in-progress session is resumed.
+
 The official SAA-C03 domain view follows the current blueprint:
 
 - Design Secure Architectures — 30%
