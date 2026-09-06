@@ -110,6 +110,12 @@ h1 { margin: 12px 0 14px; font-size: clamp(38px, 6vw, 66px); line-height: 0.98; 
 .feedback.wrong { border-left-color: var(--red); background: var(--red-soft); }
 .feedback strong { display: block; margin-bottom: 7px; }
 .feedback p { margin: 0; color: #4f5f59; line-height: 1.6; white-space: pre-line; }
+.question-note { margin-top: 18px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 11px; background: var(--paper); }
+.question-note summary { color: var(--green-dark); font-size: 13px; font-weight: 800; cursor: pointer; }
+.question-note label { display: block; margin: 14px 0 7px; color: var(--muted); font-size: 11px; font-weight: 750; }
+.question-note textarea { width: 100%; min-height: 105px; resize: vertical; padding: 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--ink); font: inherit; line-height: 1.5; }
+.question-note textarea:focus { outline: 2px solid var(--green); outline-offset: 2px; }
+.question-note small { display: block; margin-top: 6px; color: var(--muted); text-align: right; }
 .question-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: auto; padding-top: 30px; }
 .nav-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; margin: 17px 0 20px; }
 .q-dot { aspect-ratio: 1; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); color: var(--muted); font-size: 11px; font-weight: 750; position: relative; }

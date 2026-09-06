@@ -86,10 +86,11 @@
         totalSeconds: Number(saved.totalSeconds) || 0,
         studyDates: Array.isArray(saved.studyDates) ? saved.studyDates : [],
         roadmapTasks: saved.roadmapTasks && typeof saved.roadmapTasks === 'object' ? saved.roadmapTasks : {},
+        notes: saved.notes && typeof saved.notes === 'object' ? saved.notes : {},
         activeSession: saved.activeSession && typeof saved.activeSession === 'object' ? saved.activeSession : null
       };
     } catch {
-      return { attempts: [], stats: {}, totalSeconds: 0, studyDates: [], roadmapTasks: {}, activeSession: null };
+      return { attempts: [], stats: {}, totalSeconds: 0, studyDates: [], roadmapTasks: {}, notes: {}, activeSession: null };
     }
   }
 
@@ -153,6 +154,7 @@
       totalSeconds: number(value.totalSeconds),
       studyDates: Array.isArray(value.studyDates) ? [...new Set(value.studyDates.filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date)))].slice(-365) : [],
       roadmapTasks: Object.fromEntries(Object.entries(value.roadmapTasks || {}).slice(0, 500).map(([id, complete]) => [String(id), Boolean(complete)])),
+      notes: Object.fromEntries(Object.entries(value.notes || {}).slice(0, 2000).map(([id, note]) => [String(id), String(note).slice(0, 1000)]).filter(([, note]) => note.trim())),
       activeSession: null
     };
   }
@@ -672,6 +674,7 @@
     const required = Math.max(1, Number(question.selectionsRequired) || 1);
     const showFeedback = session.mode !== 'mock' && question.submitted;
     const correct = isCorrect(question);
+    const note = String(progress.notes[question.id] || '');
     app.innerHTML = `
       <header class="exam-header">
         <div class="brand">Arch<span>Ready</span></div>
@@ -687,6 +690,7 @@
               <span class="option-key">${String.fromCharCode(65 + index)}</span><span>${escapeHTML(option.text)}</span>
             </button>`).join('')}</div>
           ${showFeedback ? `<section class="feedback ${correct ? '' : 'wrong'}" role="status"><strong>${correct ? 'Correct' : 'Not quite'}</strong><p>${escapeHTML(question.explanation || `The supplied answer is: ${answerParts(question).join('; ')}`)}</p></section>` : ''}
+          <details class="question-note" ${note ? 'open' : ''}><summary>Personal note${note ? ' · Saved' : ''}</summary><label for="question-note">Your note for this question</label><textarea id="question-note" data-question-note maxlength="1000" placeholder="Record why an answer is right, a service distinction, or something to revisit.">${escapeHTML(note)}</textarea><small data-note-count>${note.length}/1000 characters</small></details>
           <div class="question-actions">
             <button class="btn" data-previous aria-keyshortcuts="ArrowLeft" ${session.index === 0 ? 'disabled' : ''}>Previous</button>
             ${session.mode !== 'mock' && !question.submitted
@@ -920,6 +924,15 @@
     if (event.target.matches('#service-search')) filterServices();
     if (event.target.matches('[data-sim-field]')) { simulator[event.target.dataset.simField] = event.target.value; saveSimulator(); }
     if (event.target.matches('[data-sim-check]')) { simulator[event.target.dataset.simCheck] = event.target.checked; saveSimulator(); }
+    if (event.target.matches('[data-question-note]') && session) {
+      const id = String(session.questions[session.index].id);
+      const note = event.target.value.slice(0, 1000);
+      if (note.trim()) progress.notes[id] = note;
+      else delete progress.notes[id];
+      const count = document.querySelector('[data-note-count]');
+      if (count) count.textContent = `${note.length}/1000 characters`;
+      saveProgress();
+    }
   });
 
   app.addEventListener('change', (event) => {
