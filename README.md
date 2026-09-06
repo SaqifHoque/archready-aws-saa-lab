@@ -20,6 +20,7 @@ ArchReady is an independent educational project. It is not affiliated with, endo
 - **Actionable insights** — the dashboard identifies the lowest-accuracy studied topic and exam domain, then links directly to focused practice.
 - **Session history** — browse every stored result, filter by study mode, and compare aggregate score, answer, and study-time totals.
 - **Portable backups** — export learner progress and simulator settings as validated JSON, then restore them in another browser.
+- **Saved questions** — bookmark useful or difficult questions during a session and launch a dedicated review set from the dashboard.
 - **Architecture lab** — design a small AWS workload from requirements through networking, security, compute, serverless integration, deployment simulation, and cost analysis.
 - **12-week roadmap** — a dependency-based tree from AWS fundamentals to an exam and portfolio sprint.
 - **One-command startup** — Docker Compose starts the frontend, backend API, and database.
@@ -125,7 +126,7 @@ SQL backups and `.env` are ignored by Git.
 
 ### Browser progress backup
 
-Select **Backup progress** on the dashboard to download a portable JSON snapshot. The file includes completed sessions, question statistics, study dates, roadmap tasks, and architecture simulator settings. Restore validates the file format and asks for confirmation before replacing current progress.
+Select **Backup progress** on the dashboard to download a portable JSON snapshot. The file includes completed sessions, question statistics, study dates, roadmap tasks, saved questions, and architecture simulator settings. Restore validates the file format and asks for confirmation before replacing current progress.
 
 Active exam sessions are intentionally excluded during restore because their original timer deadline may be stale. JSON backups contain learner progress only; they do not contain database credentials or Cognito tokens.
 
@@ -144,6 +145,8 @@ Active exam sessions are intentionally excluded during restore because their ori
 During a session, use number keys `1`–`5` to select answers, the left and right arrow keys to move between available questions, and `F` to toggle the review flag. The same actions remain available as on-screen controls.
 
 Custom sessions support 5–65 questions and can remain untimed or use a 15, 30, 60, 90, or 130-minute countdown. Timed custom practice keeps immediate answer feedback, automatically submits when time expires, and preserves the original deadline when an in-progress session is resumed.
+
+Use **Save question** beside the review flag to add or remove the current question from your personal collection. Once at least one question is saved, **Practice saved** on the dashboard starts an untimed session with up to 20 bookmarked questions. Bookmarks are included in browser, database, and optional AWS progress synchronization.
 
 The official SAA-C03 domain view follows the current blueprint:
 
