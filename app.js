@@ -345,7 +345,7 @@
       if (saved) clearActiveSession();
       return null;
     }
-    if (saved.mode === 'mock') {
+    if (saved.deadlineAt !== null && saved.deadlineAt !== undefined) {
       const remaining = Math.max(0, Math.ceil((Number(saved.deadlineAt) - Date.now()) / 1000));
       if (!Number.isFinite(Number(saved.deadlineAt)) || !remaining) {
         clearActiveSession();
@@ -621,6 +621,7 @@
 
   function start(mode, focus = {}) {
     const requested = Number(document.querySelector('#custom-count')?.value) || 20;
+    const customMinutes = Math.min(130, Math.max(0, Number(document.querySelector('#custom-duration')?.value) || 0));
     const source = mode === 'review'
       ? weakQuestionPool()
       : mode === 'domain'
@@ -649,6 +650,7 @@
       selected: [],
       submitted: false
     }));
+    const timedSeconds = mode === 'mock' ? 130 * 60 : mode === 'custom' && customMinutes ? customMinutes * 60 : null;
     session = {
       mode,
       focus,
@@ -656,8 +658,8 @@
       questions,
       index: 0,
       flagged: [],
-      remaining: mode === 'mock' ? 130 * 60 : null,
-      deadlineAt: mode === 'mock' ? Date.now() + (130 * 60 * 1000) : null,
+      remaining: timedSeconds,
+      deadlineAt: timedSeconds === null ? null : Date.now() + (timedSeconds * 1000),
       startedAt: Date.now()
     };
     renderExam();
