@@ -126,6 +126,19 @@ h1 { margin: 12px 0 14px; font-size: clamp(38px, 6vw, 66px); line-height: 0.98; 
 .summary div { background: var(--paper); border-radius: 13px; padding: 17px; }
 .summary strong { display: block; font-size: 25px; }
 .summary span { color: var(--muted); font-size: 12px; }
+.submit-review-shell { width: min(860px, calc(100% - 36px)); }
+.submit-review-card h1 { font-size: clamp(36px, 6vw, 58px); }
+.submit-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 24px 0; }
+.submit-summary div { padding: 18px; border-radius: 13px; background: var(--paper); }
+.submit-summary div.attention { background: var(--orange-soft); }
+.submit-summary strong, .submit-summary span { display: block; }
+.submit-summary strong { font-size: 27px; }
+.submit-summary span { margin-top: 3px; color: var(--muted); font-size: 11px; }
+.submit-question-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 8px; margin: 22px 0; }
+.submit-question { aspect-ratio: 1; position: relative; border: 1px solid var(--line); border-radius: 8px; background: var(--orange-soft); color: #9a4a1f; font-size: 11px; font-weight: 800; }
+.submit-question.answered { border-color: transparent; background: var(--green-soft); color: var(--green-dark); }
+.submit-question.flagged::after { content: ""; width: 7px; height: 7px; position: absolute; top: 4px; right: 4px; border-radius: 50%; background: var(--orange); }
+.submit-warning { margin: 14px 0 0; color: var(--red); font-size: 13px; font-weight: 750; }
 .notice { border-left: 4px solid var(--orange); background: var(--orange-soft); padding: 14px 16px; border-radius: 9px; color: #7f451e; }
 .progress-section { padding-top: 0; }
 .metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
@@ -356,4 +369,6 @@ h1 { margin: 12px 0 14px; font-size: clamp(38px, 6vw, 66px); line-height: 0.98; 
   .question-card { min-height: 560px; padding: 20px; }
   .question-actions { align-items: stretch; flex-direction: column; }
   .question-actions .btn { width: 100%; }
+  .submit-summary { grid-template-columns: 1fr; }
+  .submit-question-grid { grid-template-columns: repeat(5, 1fr); }
 }
