@@ -144,6 +144,8 @@ Active exam sessions are intentionally excluded during restore because their ori
 
 During a session, use number keys `1`–`5` to select answers, the left and right arrow keys to move between available questions, and `F` to toggle the review flag. The same actions remain available as on-screen controls.
 
+Selecting **Review submission** opens a final status grid instead of scoring immediately. It summarizes answered, unanswered, and flagged questions; select any question number to return and make changes, then explicitly confirm submission. Timed sessions continue counting down on this screen and submit automatically when time expires.
+
 Custom sessions support 5–65 questions and can remain untimed or use a 15, 30, 60, 90, or 130-minute countdown. Timed custom practice keeps immediate answer feedback, automatically submits when time expires, and preserves the original deadline when an in-progress session is resumed.
 
 Expand **Personal note** beneath any question to record up to 1,000 characters. Notes are keyed to the question, remain editable during practice and review, and follow the same local or cloud synchronization path as the rest of learner progress.
