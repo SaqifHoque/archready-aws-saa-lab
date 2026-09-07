@@ -695,7 +695,7 @@
             <button class="btn" data-previous aria-keyshortcuts="ArrowLeft" ${session.index === 0 ? 'disabled' : ''}>Previous</button>
             ${session.mode !== 'mock' && !question.submitted
               ? `<button class="btn btn-primary" data-check ${question.selected.length !== required ? 'disabled' : ''}>Check answer</button>`
-              : `<button class="btn btn-primary" data-next ${session.index === session.questions.length - 1 ? '' : 'aria-keyshortcuts="ArrowRight"'}>${session.index === session.questions.length - 1 ? 'Submit exam' : 'Next question'}</button>`}
+              : `<button class="btn btn-primary" data-next ${session.index === session.questions.length - 1 ? '' : 'aria-keyshortcuts="ArrowRight"'}>${session.index === session.questions.length - 1 ? 'Review and submit' : 'Next question'}</button>`}
           </div>
         </article>
         <aside class="navigator">
@@ -703,8 +703,30 @@
           <p class="subtext">Jump to any question or revisit flagged items.</p>
           <div class="exam-shortcuts" aria-label="Keyboard shortcuts"><span><kbd>1–5</kbd> answer</span><span><kbd>←</kbd><kbd>→</kbd> navigate</span><span><kbd>F</kbd> flag</span></div>
           <div class="nav-grid">${session.questions.map((item, index) => `<button class="q-dot ${index === session.index ? 'current' : ''} ${item.selected.length ? 'answered' : ''} ${session.flagged.includes(index) ? 'flagged' : ''}" data-jump="${index}" aria-label="Question ${index + 1}">${index + 1}</button>`).join('')}</div>
-          <button class="btn btn-danger" data-submit>Submit session</button>
+          <button class="btn btn-danger" data-submit>Review submission</button>
         </aside>
+      </div>`;
+  }
+
+  function renderSubmissionReview() {
+    const answered = session.questions.filter((question) => question.selected.length).length;
+    const unanswered = session.questions.length - answered;
+    const flagged = session.flagged.length;
+    app.innerHTML = `
+      <header class="exam-header">
+        <div class="brand">Arch<span>Ready</span></div>
+        <div class="exam-progress-label">${escapeHTML(session.title)} · Final review</div>
+        ${session.remaining === null ? '<span></span>' : `<div class="timer ${session.remaining < 600 ? 'warning' : ''}" data-timer>${formatTime(session.remaining)}</div>`}
+      </header>
+      <div class="shell submit-review-shell">
+        <section class="panel submit-review-card">
+          <div class="eyebrow">Before you submit</div><h1>Review your progress.</h1>
+          <p class="subtext">Submitting ends this session and records the result. Select any question below to make changes first.</p>
+          <div class="submit-summary" aria-label="Submission summary"><div><strong>${answered}</strong><span>Answered</span></div><div class="${unanswered ? 'attention' : ''}"><strong>${unanswered}</strong><span>Unanswered</span></div><div><strong>${flagged}</strong><span>Flagged</span></div></div>
+          <div class="submit-question-grid" aria-label="Questions ready for submission">${session.questions.map((question, index) => `<button class="submit-question ${question.selected.length ? 'answered' : 'unanswered'} ${session.flagged.includes(index) ? 'flagged' : ''}" data-submit-jump="${index}" aria-label="Question ${index + 1}: ${question.selected.length ? 'answered' : 'unanswered'}${session.flagged.includes(index) ? ', flagged' : ''}">${index + 1}</button>`).join('')}</div>
+          <div class="actions"><button class="btn" data-return-exam>Return to questions</button><button class="btn btn-primary" data-confirm-submit ${answered ? '' : 'disabled'}>Submit ${answered} answer${answered === 1 ? '' : 's'}</button></div>
+          ${answered ? '' : '<p class="submit-warning">Answer at least one question before submitting this session.</p>'}
+        </section>
       </div>`;
   }
 
@@ -908,10 +930,13 @@
     }
     if (target.hasAttribute('data-previous') && session.index > 0) { session.index -= 1; renderExam(); saveActiveSession(); }
     if (target.hasAttribute('data-next')) {
-      if (session.index === session.questions.length - 1) finish();
+      if (session.index === session.questions.length - 1) renderSubmissionReview();
       else { session.index += 1; renderExam(); saveActiveSession(); }
     }
-    if (target.hasAttribute('data-submit')) finish();
+    if (target.hasAttribute('data-submit')) renderSubmissionReview();
+    if (target.dataset.submitJump !== undefined) { session.index = Number(target.dataset.submitJump); renderExam(); saveActiveSession(); }
+    if (target.hasAttribute('data-return-exam')) renderExam();
+    if (target.hasAttribute('data-confirm-submit')) finish(true);
     if (target.hasAttribute('data-backup-export')) downloadProgressBackup();
     if (target.dataset.review) renderReview(target.dataset.review);
     if (target.dataset.historyFilter) sessionHistory(target.dataset.historyFilter);
