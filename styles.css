@@ -87,6 +87,9 @@ h1 { margin: 12px 0 14px; font-size: clamp(38px, 6vw, 66px); line-height: 0.98; 
 .exam-layout { width: min(1180px, calc(100% - 36px)); margin: 30px auto 60px; display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 22px; }
 .question-card, .navigator { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: clamp(22px, 4vw, 40px); }
 .question-card { min-height: 620px; display: flex; flex-direction: column; }
+.retry-context { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin: -12px 0 22px; padding: 12px 14px; border-radius: 10px; background: var(--green-soft); color: var(--green-dark); }
+.retry-context span { flex: 0 0 auto; font-size: 11px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
+.retry-context p { margin: 0; font-size: 12px; line-height: 1.45; text-align: right; }
 .navigator { align-self: start; position: sticky; top: 98px; padding: 20px; }
 .exam-shortcuts { display: grid; gap: 7px; margin: 15px 0; padding: 12px; border-radius: 10px; background: var(--paper); color: var(--muted); font-size: 11px; }
 .exam-shortcuts span { display: flex; align-items: center; gap: 5px; }
@@ -367,6 +370,8 @@ h1 { margin: 12px 0 14px; font-size: clamp(38px, 6vw, 66px); line-height: 0.98; 
   .service-controls .tag { grid-column: 1; }
   .exam-layout { width: min(100% - 20px, 1180px); margin-top: 16px; }
   .question-card { min-height: 560px; padding: 20px; }
+  .retry-context { align-items: flex-start; flex-direction: column; }
+  .retry-context p { text-align: left; }
   .question-actions { align-items: stretch; flex-direction: column; }
   .question-actions .btn { width: 100%; }
   .submit-summary { grid-template-columns: 1fr; }

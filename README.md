@@ -21,6 +21,7 @@ ArchReady is an independent educational project. It is not affiliated with, endo
 - **Session history** — browse every stored result, filter by study mode, and compare aggregate score, answer, and study-time totals.
 - **Portable backups** — export learner progress and simulator settings as validated JSON, then restore them in another browser.
 - **Personal question notes** — record service distinctions or study reminders directly beside a question and keep them with learner progress.
+- **Missed-question retries** — turn incorrect and unanswered items from any completed session into an immediate focused practice round.
 - **Architecture lab** — design a small AWS workload from requirements through networking, security, compute, serverless integration, deployment simulation, and cost analysis.
 - **12-week roadmap** — a dependency-based tree from AWS fundamentals to an exam and portfolio sprint.
 - **One-command startup** — Docker Compose starts the frontend, backend API, and database.
@@ -145,6 +146,8 @@ Active exam sessions are intentionally excluded during restore because their ori
 During a session, use number keys `1`–`5` to select answers, the left and right arrow keys to move between available questions, and `F` to toggle the review flag. The same actions remain available as on-screen controls.
 
 Selecting **Review submission** opens a final status grid instead of scoring immediately. It summarizes answered, unanswered, and flagged questions; select any question number to return and make changes, then explicitly confirm submission. Timed sessions continue counting down on this screen and submit automatically when time expires.
+
+After scoring, select **Retry missed** to create an untimed set containing only incorrect and unanswered questions from that result. A retry can be repeated until the remaining items are correct. Each completed retry is recorded as focused practice and does not count as a full mock for the exam-readiness gate.
 
 Custom sessions support 5–65 questions and can remain untimed or use a 15, 30, 60, 90, or 130-minute countdown. Timed custom practice keeps immediate answer feedback, automatically submits when time expires, and preserves the original deadline when an in-progress session is resumed.
 

@@ -277,6 +277,7 @@
     if (mode === 'domain') return 'Exam domain practice';
     if (mode === 'topic') return 'Topic practice';
     if (mode === 'service') return 'Service practice';
+    if (mode === 'retry') return 'Missed-question retry';
     if (mode === 'custom') return 'Custom practice';
     return 'Quick practice';
   }
@@ -442,7 +443,7 @@
       all: () => true,
       mock: (attempt) => attempt.mode === 'mock',
       practice: (attempt) => ['practice', 'custom'].includes(attempt.mode),
-      focused: (attempt) => ['review', 'domain', 'topic', 'service'].includes(attempt.mode)
+      focused: (attempt) => ['review', 'domain', 'topic', 'service', 'retry'].includes(attempt.mode)
     };
     const selectedFilter = groups[filter] ? filter : 'all';
     const attempts = progress.attempts.filter(groups[selectedFilter]);
@@ -683,6 +684,7 @@
       </header>
       <div class="exam-layout">
         <article class="question-card">
+          ${session.mode === 'retry' ? `<div class="retry-context"><span>Focused retry</span><p>${session.questions.length} previously missed question${session.questions.length === 1 ? '' : 's'} from ${escapeHTML(session.focus.sourceTitle)}.</p></div>` : ''}
           <div class="question-meta"><div><span class="tag">${escapeHTML(question.category || 'AWS')}</span> <span class="tag">Choose ${required}</span></div><button class="flag ${session.flagged.includes(session.index) ? 'active' : ''}" data-flag aria-keyshortcuts="F">${session.flagged.includes(session.index) ? 'Flagged' : 'Flag for review'}</button></div>
           <div class="question-text">${escapeHTML(question.question)}</div>
           <div class="options">${question.options.map((option, index) => `
@@ -818,15 +820,40 @@
       </section></div>`;
   }
 
+  function startMissedRetry() {
+    const missed = session.questions.filter((question) => !isCorrect(question));
+    if (!missed.length) return;
+    const sourceTitle = session.focus?.sourceTitle || session.title;
+    session = {
+      mode: 'retry',
+      focus: { sourceTitle },
+      title: `Retry: ${sourceTitle}`,
+      questions: missed.map((question) => ({
+        ...question,
+        options: question.options.map((option) => ({ ...option })),
+        selected: [],
+        submitted: false
+      })),
+      index: 0,
+      flagged: [],
+      remaining: null,
+      deadlineAt: null,
+      startedAt: Date.now()
+    };
+    renderExam();
+    saveActiveSession();
+  }
+
   function renderResults() {
     const { answered, correct, score } = session.result;
+    const missed = session.questions.length - correct;
     app.innerHTML = `
       <header class="site-header"><div class="brand">Arch<span>Ready</span></div></header>
       <div class="shell"><section class="panel">
         <div class="eyebrow">Session complete</div><h1>${score}%</h1>
         <p class="subtext">Your ${escapeHTML(session.title.toLowerCase())} session has been scored.</p>
         <div class="summary"><div><strong>${correct}</strong><span>Correct</span></div><div><strong>${answered}</strong><span>Answered</span></div><div><strong>${session.questions.length - answered}</strong><span>Unanswered</span></div></div>
-        <div class="actions"><button class="btn btn-primary" data-review="incorrect">Review missed answers</button><button class="btn" data-review="all">Review all</button><button class="btn" data-home>Return home</button><button class="btn" data-restart>Try another session</button></div>
+        <div class="actions">${missed ? `<button class="btn btn-primary" data-retry-missed>Retry ${missed} missed</button>` : ''}<button class="btn" data-review="incorrect">Review missed answers</button><button class="btn" data-review="all">Review all</button><button class="btn" data-home>Return home</button>${session.mode === 'retry' ? '' : '<button class="btn" data-restart>Try another session</button>'}</div>
       </section></div>`;
   }
 
@@ -941,6 +968,7 @@
     if (target.dataset.review) renderReview(target.dataset.review);
     if (target.dataset.historyFilter) sessionHistory(target.dataset.historyFilter);
     if (target.hasAttribute('data-results')) renderResults();
+    if (target.hasAttribute('data-retry-missed')) startMissedRetry();
     if (target.hasAttribute('data-home')) home();
     if (target.hasAttribute('data-restart')) start(session.mode, session.focus);
   });
