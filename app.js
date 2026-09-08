@@ -684,6 +684,7 @@
       </header>
       <div class="exam-layout">
         <article class="question-card">
+          ${session.mode === 'retry' ? `<div class="retry-context"><span>Focused retry</span><p>${session.questions.length} previously missed question${session.questions.length === 1 ? '' : 's'} from ${escapeHTML(session.focus.sourceTitle)}.</p></div>` : ''}
           <div class="question-meta"><div><span class="tag">${escapeHTML(question.category || 'AWS')}</span> <span class="tag">Choose ${required}</span></div><button class="flag ${session.flagged.includes(session.index) ? 'active' : ''}" data-flag aria-keyshortcuts="F">${session.flagged.includes(session.index) ? 'Flagged' : 'Flag for review'}</button></div>
           <div class="question-text">${escapeHTML(question.question)}</div>
           <div class="options">${question.options.map((option, index) => `
