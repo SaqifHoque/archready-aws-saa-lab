@@ -1,5 +1,21 @@
 # ArchReady — AWS SAA Exam & Architecture Lab
 
+## Live demo
+
+**[Open the interactive demo](https://archready-aws-saa-lab.vercel.app/)** — no installation or sign-in required.
+
+Explore practice sessions, the learning roadmap, and architecture simulator. The public showcase includes 12 original practice questions, not real exam questions. Progress stays in this browser, and readiness estimates from this small sample are illustrative only. The full supplied study bank is deliberately excluded from the demo build.
+
+### Build the public demo
+
+```sh
+npm run check
+npm run build:demo
+```
+
+Static output: `demo-dist/`. Deploy that directory to a static host. Demo deployments are snapshots and must be rebuilt and redeployed after source changes.
+
+
 ArchReady is a self-hosted study environment for the AWS Certified Solutions Architect – Associate (SAA-C03) exam. It combines timed mock exams, focused domain practice, persistent progress tracking, a structured learning roadmap, and a guided AWS architecture simulator in one application.
 
 > Recommended GitHub repository name: **`archready-aws-saa-lab`**
