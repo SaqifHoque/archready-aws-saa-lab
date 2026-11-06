@@ -8,7 +8,7 @@
   let saveTimer = null;
 
   function read(value, fallback) { try { return value ? JSON.parse(value) : fallback; } catch { return fallback; } }
-  function localMode() { return config.mode === 'local'; }
+  function localMode() { return ['local', 'cookie'].includes(config.mode); }
   function configured() { return Boolean(config.enabled && config.apiUrl && (localMode() || (config.cognitoDomain && config.clientId))); }
   function domain() { return String(config.cognitoDomain).replace(/\/$/, ''); }
   function redirectUri() { return config.redirectUri || `${location.origin}${location.pathname}`; }
@@ -95,7 +95,7 @@
     saveTimer = setTimeout(() => save(snapshot).catch((error) => status('error', error.message)), 900);
   }
   function user() {
-    if (localMode()) return { email: 'Database synced', sub: 'local-default' };
+    if (localMode()) return { email: config.mode === 'cookie' ? 'Cloud saved for this browser' : 'Database synced', sub: 'local-default' };
     const claims = decodeJwt(auth?.id_token || auth?.access_token || '');
     return { email: claims.email || claims['cognito:username'] || 'AWS learner', sub: claims.sub };
   }

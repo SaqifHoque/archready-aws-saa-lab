@@ -59,3 +59,13 @@ Thumbs.db
 
 # Generated public showcase
 demo-dist/
+
+# Private deployment credentials and local metadata
+.env.deployment-*
+.vercel/
+__pycache__/
+.pytest_cache/
+
+!/db/
+!/db/migrations/
+!/db/migrations/*.sql

@@ -338,3 +338,9 @@ Contributions are welcome for application behavior, accessibility, tests, import
 ## License
 
 No open-source license has been selected yet. Until a license is added, normal copyright restrictions apply to the project source. Choose a code license only after separately reviewing the redistribution rights for bundled question content.
+
+## Hosted deployment with Neon
+
+The Vercel deployment uses `vercel.json`, FastAPI and a server-only `DATABASE_URL`. Run `db/migrations/001_progress.sql` on a Neon preview branch first, then on production. Production and preview must have distinct connection strings. `npm run vercel-build` publishes only the 12 original showcase questions. The supplied full question bank remains excluded.
+
+Progress is persisted in Postgres using a random HttpOnly browser capability whose hash is the record key. Visitors do not share a default learner. Clearing cookies creates a new learner; account-based cross-device synchronization is not enabled in this hosted mode. Existing Cognito and local Docker modes remain available. Use the app's export feature before clearing browser data. `/api/health` checks actual database/schema access.

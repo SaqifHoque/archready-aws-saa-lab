@@ -1,8 +1,10 @@
 import { mkdirSync, copyFileSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+const hosted = process.argv.includes('--hosted');
 const out='demo-dist';
 rmSync(out,{recursive:true,force:true}); mkdirSync(`${out}/data`,{recursive:true});
 for(const name of ['app.js','styles.css','services.js','learning.js','cloud-config.js','cloud-sync.js']) copyFileSync(name,`${out}/${name}`);
 copyFileSync('data/demo-questions.js',`${out}/data/questions.js`);
-const notice='<aside role="status" style="padding:14px 24px;background:#e9f1e8;color:#183720;text-align:center">Public showcase · 12 original practice questions, not real exam questions. Progress stays in this browser; cloud accounts are disabled. Exam readiness scores from this small sample are illustrative only. <a href="https://github.com/SaqifHoque/archready-aws-saa-lab">Source and setup</a></aside>';
+if (hosted) writeFileSync(`${out}/cloud-config.js`, 'window.ARCHREADY_CLOUD = '+JSON.stringify({enabled:true,mode:'cookie',apiUrl:'/api'})+';');
+const notice=`<aside role="status" style="padding:14px 24px;background:#e9f1e8;color:#183720;text-align:center">Public showcase · 12 original practice questions, not real exam questions. ${hosted ? 'Progress is saved privately in the database for this browser. Cross-device accounts are not enabled; keep a backup before clearing cookies.' : 'Progress stays in this browser; cloud accounts are disabled.'} Exam readiness scores from this small sample are illustrative only. <a href="https://github.com/SaqifHoque/archready-aws-saa-lab">Source and setup</a></aside>`;
 writeFileSync(`${out}/index.html`,readFileSync('index.html','utf8').replace('<body>','<body>'+notice));
 writeFileSync(`${out}/vercel.json`,JSON.stringify({framework:null,buildCommand:'',outputDirectory:'.'}));
